@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+    <EmbeddedResource Include="Remote/remote.py" LogicalName="remote.py" />
+    <EmbeddedResource Include="Remote/profiles.py" LogicalName="profiles.py" />
+    <EmbeddedResource Include="Remote/bootstrap.sh" LogicalName="bootstrap.sh" />
+  </ItemGroup>
+</Project>
