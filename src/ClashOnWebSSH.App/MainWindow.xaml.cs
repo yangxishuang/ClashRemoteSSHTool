@@ -54,6 +54,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow(bool demo = false)
     {
         _demo = demo;
+        if (demo) { _maintenancePrivileges = RemotePrivilegeMode.PasswordRequired; _maintenancePrivilegesChecked = true; }
         NodesView = CollectionViewSource.GetDefaultView(Nodes);
         NodesView.Filter = item => item is NodeRow row && (string.IsNullOrWhiteSpace(SearchBox?.Text) || row.Name.Contains(SearchBox.Text, StringComparison.OrdinalIgnoreCase));
         InitializeComponent();
@@ -128,6 +129,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (_connected && !_demo)
         {
             _remote?.Dispose(); _remote = null; _connected = false;
+            _maintenancePrivilegesChecked = false; SudoPassword.Clear();
             _service = "已断开"; _version = "—"; _mode = "—"; _port = "连接已关闭";
             Groups.Clear(); Nodes.Clear(); Configurations.Clear(); _group = null;
             ConnectButton.Content = "连接服务器"; SetStatus("已断开 SSH；远端代理继续运行。"); Notify(); return;
@@ -149,6 +151,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 var capabilities = await actions.CheckConnectionAsync();
                 _pythonAvailable = capabilities.Contains("python3");
                 _remote = actions; _connected = true;
+                await RefreshMaintenancePrivilegesAsync();
                 _settings.Save(profile);
                 ConnectButton.Content = "断开连接";
                 if (!capabilities.Contains("python3"))
@@ -275,7 +278,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (!_demo && !Confirm(linger ? "将通过 loginctl 为当前 SSH 用户开启 linger，允许用户服务在退出后运行。需要 root 或 sudo。继续？" : "将在远端安装 Python 3、PyYAML 和 CA 证书。支持 apt/dnf/yum，需要 root 或 sudo。继续？", title)) return;
         await Run(title, async () =>
         {
-            try { AddLog(await _remote!.BootstrapAsync(SudoPassword.Password, linger)); await RefreshState(); }
+            try { AddLog(await _remote!.BootstrapAsync(SudoPassword.Password, linger)); await RefreshMaintenancePrivilegesAsync(); await RefreshState(); }
             finally { SudoPassword.Clear(); }
         });
     }

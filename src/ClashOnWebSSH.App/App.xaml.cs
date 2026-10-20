@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -24,7 +25,20 @@ public partial class App : Application
         };
         var renderIndex = Array.IndexOf(e.Args, "--render-demo");
         var demo = e.Args.Contains("--demo") || renderIndex >= 0;
-        Window window = demo && e.Args.Contains("--wizard") ? new DeploymentWindow(null, true, true) : new MainWindow(demo);
+        if (demo) Themes.Appearance.SetDark(e.Args.Contains("--dark"), false); else Themes.Appearance.Load();
+        EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((sender, _) =>
+        {
+            Themes.Appearance.UpdateTitleBars();
+            if (sender is Window opened && SystemParameters.ClientAreaAnimation)
+                opened.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, Controls.Motion.Fast));
+        }));
+        Window window = demo && e.Args.Contains("--wizard") ? new DeploymentWindow(null, true, true)
+            : demo && e.Args.Contains("--import") ? new ProfileImportWindow()
+            : demo && e.Args.Contains("--uninstall") ? new UninstallWindow(JsonSerializer.SerializeToElement(new
+            {
+                service = "clash-verge.service", retainedBinary = "/usr/bin/verge-mihomo",
+                files = new[] { new { label = "用户服务（演示）", path = "~/.config/systemd/user/clash-verge.service" }, new { label = "运行配置（演示）", path = "~/.config/clash-verge/config.yaml" } }
+            })) : new MainWindow(demo);
         MainWindow = window;
         if (renderIndex >= 0 && renderIndex + 1 < e.Args.Length)
         {
@@ -37,8 +51,8 @@ public partial class App : Application
                 var visual = (FrameworkElement)window.Content;
                 var tabIndex = Array.IndexOf(e.Args, "--tab");
                 if (tabIndex >= 0 && tabIndex + 1 < e.Args.Length && int.TryParse(e.Args[tabIndex + 1], out var tab)
-                    && window.FindName("MainTabs") is System.Windows.Controls.TabControl tabs)
-                    tabs.SelectedIndex = Math.Clamp(tab, 0, 3);
+                    && (window.FindName("MainTabs") ?? window.FindName("ImportTabs")) is System.Windows.Controls.TabControl tabs)
+                    tabs.SelectedIndex = Math.Clamp(tab, 0, tabs.Items.Count - 1);
                 var busyIndex = Array.IndexOf(e.Args, "--busy-step");
                 var step = busyIndex >= 0 && busyIndex + 1 < e.Args.Length && int.TryParse(e.Args[busyIndex + 1], out var parsedStep) ? Math.Clamp(parsedStep, 0, 3) : 0;
                 var privilegeIndex = Array.IndexOf(e.Args, "--privilege");
@@ -56,7 +70,7 @@ public partial class App : Application
                     if (window is DeploymentWindow preview) preview.PreviewOperation(0, privileges);
                     window.Close(); Shutdown();
                 }
-                if (window is DeploymentWindow && step > 0)
+                if (window is DeploymentWindow && step > 0 || window is MainWindow)
                 {
                     var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
                     timer.Tick += (_, _) => { timer.Stop(); Capture(); };

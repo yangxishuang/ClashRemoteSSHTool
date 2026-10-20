@@ -121,7 +121,7 @@ internal sealed class RenameProfileWindow : Window
     {
         Style = (Style)Application.Current.FindResource(typeof(Window));
         Title = "重命名配置"; Width = 420; Height = 215; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = System.Windows.Media.Brushes.White;
+        SetResourceReference(BackgroundProperty, "CardSurface");
         var panel = new StackPanel { Margin = new Thickness(24) };
         panel.Children.Add(new TextBlock { Text = "配置名称", Margin = new Thickness(0, 0, 0, 10) });
         _input = new TextBox { Text = name, MaxLength = 80 }; panel.Children.Add(_input);

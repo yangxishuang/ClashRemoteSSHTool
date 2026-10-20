@@ -1,6 +1,6 @@
 # 第三方组件与来源
 
-应用0.2.1；2026-10-20。本应用是独立WPF界面及SSH动作适配，未复制MetaCubeXD/Zashboard前端，也未修改服务器现有clashctl。开源复用集中在SSH库、.NET和远端mihomo。
+应用0.3.0；2026-10-20。本应用是独立WPF界面及SSH动作适配，未复制MetaCubeXD/Zashboard前端，也未修改服务器现有clashctl。开源复用集中在SSH库、.NET和远端mihomo。
 
 | 组件 | 版本 | 许可 / 来源 | 使用方式 |
 | --- | --- | --- | --- |
@@ -16,3 +16,5 @@
 `licenses/`保留随分发依赖的版权、许可及第三方声明。SSH.NET许可来自固定标签官方LICENSE，其余从固定版本官方NuGet包提取。发布文件夹及压缩包保留这些文件。上游MIT许可不自动代表本仓库自编代码已声明MIT。
 
 开发SDK为10.0.402，官方SDK压缩包已校验SHA-512；SDK及开发期Paramiko、PyYAML不随EXE分发。mihomo下载哈希固定在Remote/remote.py；更新内核版本时须同步官方哈希、来源、文档及安装测试。
+
+界面设计参考：用户提供的D:/Codes/FlClash-main源码（GPL-3.0），阅读主题、表面、圆角、导航及过渡实现后使用WPF独立重绘；本轮不分发FlClash的Flutter组件、图标、字体或图片。参考文件及本项目参数见docs/FLCLASH-UI.md。
