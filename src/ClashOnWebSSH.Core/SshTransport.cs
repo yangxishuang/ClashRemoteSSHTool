@@ -8,9 +8,12 @@ namespace ClashOnWebSSH.Core;
 public interface ISshTransport : IDisposable
 {
     Task<CommandResult> ExecuteAsync(string command, string input, TimeSpan timeout, CancellationToken cancellation = default);
+    Task<CommandResult> UploadAsync(string command, ReadOnlyMemory<byte> header, Stream input, long length,
+        IProgress<long>? progress, TimeSpan timeout, CancellationToken cancellation = default)
+        => throw new NotSupportedException("当前 SSH 通道不支持二进制上传。");
 }
 
-public sealed class OpenSshTransport : ISshTransport
+public sealed partial class OpenSshTransport : ISshTransport
 {
     private readonly ConnectionProfile _profile;
     public OpenSshTransport(ConnectionProfile profile) { profile.Validate(); _profile = profile; }
@@ -73,7 +76,7 @@ public sealed class OpenSshTransport : ISshTransport
     public void Dispose() { }
 }
 
-public sealed class PasswordSshTransport : ISshTransport
+public sealed partial class PasswordSshTransport : ISshTransport
 {
     private readonly ConnectionProfile _profile;
     private readonly SshClient _client;

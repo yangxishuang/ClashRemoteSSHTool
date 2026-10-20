@@ -13,6 +13,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     private enum OperationStep { None, Environment, Configuration, Deployment }
     private readonly RemoteActions _remote;
     private readonly bool _demo;
+    private readonly KernelPackageStore? _packages;
     private readonly string? _preferredProfileId;
     private readonly DispatcherTimer _operationTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly Stopwatch _elapsed = new();
@@ -20,6 +21,13 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     private RemotePrivilegeMode _privileges = RemotePrivilegeMode.Unknown;
     private OperationStep _activeStep;
     private string _status = "先检查依赖，再导入一个配置。", _operationTitle = "";
+    private DeploymentProgress _deploymentProgress = new("准备部署");
+    private bool _showOfflineFallback;
+    private int _progressGeneration;
+    public bool ShowOfflineFallback => _showOfflineFallback;
+    public string DeploymentProgressText => _deploymentProgress.Text;
+    public double DeploymentPercent => _deploymentProgress.Percent;
+    public bool IsDeploymentIndeterminate => _deploymentProgress.Total is not > 0;
     public ObservableCollection<ConfigurationProfile> Profiles { get; } = new();
     public bool IsIdle => !_busy;
     public bool CanImport => !_busy && _python && _yaml;
@@ -41,9 +49,9 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     };
     public string EnvironmentText => $"Python {(_python ? "就绪" : "缺失")} · YAML {(_yaml ? "就绪" : "缺失")} · 用户会话 {(_systemd ? "可用" : "待检查")} · linger {(_linger ? "已开启" : "未开启")}。";
     public event PropertyChangedEventHandler? PropertyChanged;
-    public DeploymentWindow(RemoteActions? remote, bool pythonAvailable, bool demo = false, string? preferredProfileId = null)
+    public DeploymentWindow(RemoteActions? remote, bool pythonAvailable, bool demo = false, string? preferredProfileId = null, KernelPackageStore? packages = null)
     {
-        _remote = remote!; _python = pythonAvailable; _demo = demo; _preferredProfileId = preferredProfileId;
+        _remote = remote!; _python = pythonAvailable; _demo = demo; _preferredProfileId = preferredProfileId; _packages = packages;
         InitializeComponent(); DataContext = this;
         _operationTimer.Tick += (_, _) => PropertyChanged?.Invoke(this, new(nameof(OperationText)));
         Loaded += async (_, _) =>
@@ -74,6 +82,11 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
         if (_privileges is RemotePrivilegeMode.Root or RemotePrivilegeMode.PasswordlessSudo or RemotePrivilegeMode.SudoUnavailable) SudoBox.Clear();
         Notify();
     }
+    internal void PreviewDeployment(DeploymentProgress progress, bool offlineFallback)
+    {
+        if (!_demo) throw new InvalidOperationException("仅演示模式可预览操作状态。");
+        _deploymentProgress = progress; _showOfflineFallback = offlineFallback; Notify();
+    }
     private void BeginOperation(OperationStep step, string title)
     {
         _busy = true; _activeStep = step; _operationTitle = title; _status = title + "…";
@@ -81,6 +94,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     }
     private void EndOperation()
     {
+        _progressGeneration++;
         _operationTimer.Stop(); _elapsed.Stop(); _busy = false; _activeStep = OperationStep.None; Notify();
     }
     private async Task<bool> RunTask(OperationStep step, string title, Func<Task> operation)
@@ -103,7 +117,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
         _privileges = privileges; _privilegesChecked = true;
         EndOperation();
         if (step is >= 1 and <= 3)
-            BeginOperation((OperationStep)step, step switch { 1 => "准备系统依赖", 2 => "下载并导入配置", _ => "部署并启动 Clash，下载可能需要几分钟" });
+            BeginOperation((OperationStep)step, step switch { 1 => "准备系统依赖", 2 => "下载并导入配置", _ => "部署并启动 Clash" });
         Notify();
     }
     private async Task RefreshAsync()
@@ -141,13 +155,33 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
             ProfileBox.SelectedItem = Profiles.FirstOrDefault(p => p.Id == identity);
         });
     }
-    private async void DeployClicked(object sender, RoutedEventArgs e)
+    private async void DeployClicked(object sender, RoutedEventArgs e) => await StartDeploymentAsync();
+    private async void OfflineDeployClicked(object sender, RoutedEventArgs e)
+    {
+        if (!CanDeploy) return;
+        var picker = new Microsoft.Win32.OpenFileDialog { Title = "选择对应架构的 mihomo v1.19.31 离线内核包", Filter = "mihomo 内核压缩包 (*.gz)|*.gz", CheckFileExists = true };
+        if (picker.ShowDialog(this) == true) await StartDeploymentAsync(picker.FileName);
+    }
+    private async Task StartDeploymentAsync(string? offlinePackage = null)
     {
         if (ProfileBox.SelectedItem is not ConfigurationProfile profile) { _status = "请先添加或选择一个配置。"; Notify(); return; }
         string? message = null;
-        if (await RunTask(OperationStep.Deployment, "部署并启动 Clash，下载可能需要几分钟", async () =>
+        if (await RunTask(OperationStep.Deployment, "部署并启动 Clash", async () =>
         {
-            var result = await _remote.InvokeAsync("deploy", new { profileId = profile.Id });
+            var generation = ++_progressGeneration;
+            _deploymentProgress = new("检查远端架构与已有内核"); Notify();
+            var progress = new Progress<DeploymentProgress>(value =>
+            {
+                if (generation != _progressGeneration || !IsDeploymentBusy) return;
+                _deploymentProgress = value; Notify();
+            });
+            RemoteReply result;
+            try
+            {
+                result = await _remote.DeployAsync(profile.Id, progress, offlinePackage, _packages);
+                _showOfflineFallback = false;
+            }
+            catch (KernelAcquisitionException) { _showOfflineFallback = true; Notify(); throw; }
             await RefreshAsync(); message = result.Data.GetProperty("message").GetString();
         })) MessageBox.Show(this, message, "部署结果", MessageBoxButton.OK, MessageBoxImage.Information);
     }

@@ -28,12 +28,10 @@ import uuid
 
 HOME = pathlib.Path.home()
 MAX_CONFIG = 10 * 1024 * 1024
-VERSION = "v1.19.31"
-ASSETS = {
-    "x86_64": ("amd64-compatible", "04cf9f09671704f839ddbee2e93069dc831a4123a75281e725d1d96ab9ac1afc"),
-    "aarch64": ("arm64", "9e0f11afbf38426b8bd88fdc594678f8161c57eccb4e1b77acb12b493904f1d4"),
-    "arm64": ("arm64", "9e0f11afbf38426b8bd88fdc594678f8161c57eccb4e1b77acb12b493904f1d4"),
-}
+if "cached_core" not in globals():
+    exec(compile(pathlib.Path(__file__).with_name("core_transfer.py").read_text(encoding="utf-8"), "core_transfer.py", "exec"))
+VERSION = CORE_MANIFEST["version"]
+ASSETS = {key: (value["asset"], value["sha256"]) for key, value in CORE_MANIFEST["assets"].items()}
 
 
 def redact(value):
@@ -432,7 +430,11 @@ def deploy(request):
     if not existing_binary:
         arch, digest = ASSETS[machine]
         url = "https://github.com/MetaCubeX/mihomo/releases/download/" + VERSION + "/mihomo-linux-" + arch + "-" + VERSION + ".gz"
-        packed = download(url, 64 * 1024 * 1024)
+        packed = cached_core()
+        if packed is None:
+            if request.get("uploadedCore"):
+                raise RuntimeError("已上传的内核缓存缺失或校验失败，请重新部署以上传")
+            packed = download(url, 64 * 1024 * 1024)
         if hashlib.sha256(packed).hexdigest() != digest:
             raise RuntimeError("官方内核 SHA-256 不匹配，已停止安装")
         with gzip.GzipFile(fileobj=io.BytesIO(packed)) as archive:
@@ -508,6 +510,13 @@ def execute(request):
     config_path(request)
     if action == "probe":
         return probe(request)
+    if action == "core.status":
+        state = probe(request)
+        asset = core_asset()
+        return {"installed": state["installed"], "systemdUser": state["systemdUser"],
+                "coreAvailable": state["coreAvailable"], "architecture": platform.machine(),
+                "cached": False if state["coreAvailable"] else cached_core() is not None,
+                "version": VERSION, "asset": asset["asset"], "sha256": asset["sha256"]}
     if action == "groups":
         return groups(request)
     if action == "profiles.list":

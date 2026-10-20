@@ -8,5 +8,7 @@
     <EmbeddedResource Include="Remote/remote.py" LogicalName="remote.py" />
     <EmbeddedResource Include="Remote/profiles.py" LogicalName="profiles.py" />
     <EmbeddedResource Include="Remote/bootstrap.sh" LogicalName="bootstrap.sh" />
+    <EmbeddedResource Include="Remote/core_transfer.py" LogicalName="core_transfer.py" />
+    <EmbeddedResource Include="Remote/kernel-manifest.json" LogicalName="kernel-manifest.json" />
   </ItemGroup>
 </Project>

@@ -2,7 +2,7 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.3.0，2026-10-20。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261020-0.3.0.md)
+**版本0.3.1，2026-10-20。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261020-0.3.1.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
@@ -15,6 +15,7 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 - 订阅链接/YAML导入、配置卡片、流量/到期、切换、更新、重命名及删除；切换保护固定设置并支持失败恢复。
 - 无Clash主动打开部署向导；已有服务显示管理及卸载，配置库保留以便重新部署。
 - 部署步骤卡片显示边框加载动画、当前任务和计时；管理员密码框自动识别root/免密sudo，使用猫咪应用图标。
+- 内核由本机自动从加速源/官方源下载，校验并缓存后经SSH上传，显示字节进度；离线包导入仅作为自动获取失败后的后备入口。
 
 首次部署支持Linux amd64/arm64及systemd用户会话，已有系统内核可复用；新下载固定mihomo v1.19.31并验SHA-256，不覆盖配置/unit。多订阅合并、规则编辑、TUN、自动调度和多机平台不在范围。
 
@@ -34,8 +35,8 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约141MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。旧EXE保留，关闭旧版后运行新EXE，连接设置沿用。
 
-44项Python隔离、24项C#本地/协议及16项WPF交互检查通过；真实订阅216节点、本机下载/SSH上传/远端内核校验通过，现场导入见验证记录。未对现有服务执行配置切换、重启或卸载。
+53项Python隔离、37项C#本地/协议及18项WPF交互检查通过；两种架构真实内核包下载与校验、22.8MB包回环SSH完整编排通过。此前真实订阅216节点导入见0.2记录，本轮未操作现有服务器。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 
-当前基线 **DESKTOP-SSH-0.7**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。
+当前基线 **DESKTOP-SSH-0.8**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载顺序、第三方镜像及后备入口见[内核部署](docs/KERNEL-DEPLOYMENT.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。

@@ -6,7 +6,7 @@ using System.Text.Encodings.Web;
 
 namespace ClashOnWebSSH.Core;
 
-public sealed class RemoteActions : IDisposable
+public sealed partial class RemoteActions : IDisposable
 {
     private readonly ISshTransport _transport;
     private readonly ConnectionProfile _profile;
@@ -19,13 +19,14 @@ public sealed class RemoteActions : IDisposable
         using var reader = new StreamReader(stream, Encoding.UTF8);
         return reader.ReadToEnd();
     }
-    public static string Script { get; } = Resource("profiles.py") + "\n" + Resource("remote.py");
-    public static string ScriptCommand { get; } = BuildScriptCommand();
-    private static string BuildScriptCommand()
+    private static string CoreScript => "CORE_MANIFEST = __import__('json').loads(" + JsonSerializer.Serialize(Resource("kernel-manifest.json")) + ")\n" + Resource("core_transfer.py");
+    public static string Script { get; } = CoreScript + "\n" + Resource("profiles.py") + "\n" + Resource("remote.py");
+    public static string ScriptCommand { get; } = BuildScriptCommand(Script);
+    private static string BuildScriptCommand(string script)
     {
         using var buffer = new MemoryStream();
         using (var compressor = new ZLibStream(buffer, CompressionLevel.Optimal, leaveOpen: true))
-            compressor.Write(Encoding.UTF8.GetBytes(Script));
+            compressor.Write(Encoding.UTF8.GetBytes(script));
         return "python3 -u -c \"import base64,zlib;exec(zlib.decompress(base64.b64decode('" + Convert.ToBase64String(buffer.ToArray()) + "')))\"";
     }
     public RemoteActions(ConnectionProfile profile, ISshTransport transport) { _profile = profile; _transport = transport; }
@@ -42,7 +43,7 @@ public sealed class RemoteActions : IDisposable
 
     public async Task<RemoteReply> InvokeAsync(string action, object? values = null, CancellationToken cancellation = default)
     {
-        var allowed = new[] { "probe", "groups", "select", "delay", "service", "logs", "connectivity", "mode", "update", "deploy",
+        var allowed = new[] { "probe", "core.status", "groups", "select", "delay", "service", "logs", "connectivity", "mode", "update", "deploy",
             "profiles.list", "profiles.source", "profiles.preview", "profiles.import", "profiles.apply", "profiles.update", "profiles.rename", "profiles.delete", "uninstall.plan", "uninstall" };
         if (!allowed.Contains(action)) throw new ArgumentException("不支持的远端动作。");
         await _operations.WaitAsync(cancellation);
@@ -116,5 +117,5 @@ public sealed class RemoteActions : IDisposable
         finally { _operations.Release(); }
     }
     private static string ShellQuote(string value) => "'" + value.Replace("'", "'\"'\"'") + "'";
-    public void Dispose() { _transport.Dispose(); _operations.Dispose(); }
+    public void Dispose() { _transport.Dispose(); _operations.Dispose(); _deployments.Dispose(); }
 }

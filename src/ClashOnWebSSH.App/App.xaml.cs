@@ -58,7 +58,12 @@ public partial class App : Application
                 var privilegeIndex = Array.IndexOf(e.Args, "--privilege");
                 var privileges = privilegeIndex >= 0 && privilegeIndex + 1 < e.Args.Length && Enum.TryParse<Core.RemotePrivilegeMode>(e.Args[privilegeIndex + 1], true, out var parsedPrivilege)
                     ? parsedPrivilege : Core.RemotePrivilegeMode.PasswordRequired;
-                if (window is DeploymentWindow wizard) wizard.PreviewOperation(step, privileges);
+                if (window is DeploymentWindow wizard)
+                {
+                    wizard.PreviewOperation(step, privileges);
+                    if (step == 3) wizard.PreviewDeployment(new("SSH 上传内核", 12 * 1048576, 24 * 1048576), false);
+                    if (e.Args.Contains("--offline-fallback")) wizard.PreviewDeployment(new("自动获取内核失败"), true);
+                }
                 void Capture()
                 {
                     visual.UpdateLayout();
