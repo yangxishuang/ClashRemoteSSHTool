@@ -1,11 +1,89 @@
-<Window x:Class="ClashOnWebSSH.App.DeploymentWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="部署 Clash · 首次使用向导" Width="650" Height="690" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" Background="#F5F7FC" Foreground="#17243B" FontFamily="Microsoft YaHei UI" FontSize="13">
-    <Border Background="#F5F7FC"><Grid Margin="26"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <StackPanel Margin="0,0,0,18"><TextBlock Text="为这台服务器准备 Clash" FontSize="23" FontWeight="SemiBold"/><TextBlock Text="检测到尚未部署服务，按下面三步开始使用。" Style="{StaticResource Caption}" Margin="0,8,0,0"/></StackPanel>
-        <StackPanel Grid.Row="1">
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12"><StackPanel><TextBlock Text="01   检查运行环境" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="{Binding EnvironmentText}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,12"/><DockPanel><TextBlock DockPanel.Dock="Right" Text="可选 sudo 密码" VerticalAlignment="Center" Style="{StaticResource Caption}" Margin="10,0,0,0"/><PasswordBox x:Name="SudoBox" IsEnabled="{Binding IsIdle}"/></DockPanel><WrapPanel Margin="0,10,0,0"><Button Content="准备依赖" Click="PrepareClicked" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0"/><Button Content="启用脱离登录运行" Click="LingerClicked" IsEnabled="{Binding IsIdle}"/></WrapPanel></StackPanel></Border>
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12"><StackPanel><TextBlock Text="02   导入或选择配置" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="支持订阅链接和本机 YAML 文件，已有配置也可直接复用。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,9,0,12"/><DockPanel><Button DockPanel.Dock="Right" Content="＋ 添加配置" Click="ImportClicked" IsEnabled="{Binding CanImport}" Margin="8,0,0,0"/><ComboBox x:Name="ProfileBox" ItemsSource="{Binding Profiles}" DisplayMemberPath="Name" IsEnabled="{Binding CanImport}"/></DockPanel></StackPanel></Border>
-            <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="03   部署并启动" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="Linux amd64 / arm64 · systemd 用户服务 · 代理仅回环访问。已有系统内核可复用，新下载内核校验官方 SHA-256。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,9,0,12"/><Button Content="部署并启动 Clash" Click="DeployClicked" Style="{StaticResource PrimaryButton}" IsEnabled="{Binding CanDeploy}" HorizontalAlignment="Left"/></StackPanel></Border>
-        </StackPanel>
-        <Grid Grid.Row="2" Margin="0,15,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding StatusText}" Foreground="#6E7895" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/><Button Grid.Column="1" Content="关闭向导" IsEnabled="{Binding IsIdle}" Click="CloseClicked"/></Grid>
-    </Grid></Border>
+<Window Style="{StaticResource {x:Type Window}}" x:Class="ClashOnWebSSH.App.DeploymentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ClashOnWebSSH.App.Controls"
+        Title="部署 Clash · 首次使用向导" Width="680" Height="790" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="#F5F7FC" Foreground="#17243B"
+        FontFamily="Microsoft YaHei UI" FontSize="13">
+    <Window.Resources>
+        <Style x:Key="SudoInput" TargetType="PasswordBox" BasedOn="{StaticResource {x:Type PasswordBox}}">
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#EEF1F6"/>
+                    <Setter Property="BorderBrush" Value="#E1E5ED"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="OperationMessage" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#655DEF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,12,0,0"/>
+        </Style>
+    </Window.Resources>
+    <Border Background="#F5F7FC">
+        <Grid Margin="26">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <StackPanel Margin="0,0,0,18">
+                <TextBlock Text="为这台服务器准备 Clash" FontSize="23" FontWeight="SemiBold"/>
+                <TextBlock Text="检测到尚未部署服务，按下面三步开始使用。" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+            </StackPanel>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,2,3,2">
+                <StackPanel>
+                    <Grid Margin="0,0,0,12">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="01   检查运行环境" FontSize="15" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding EnvironmentText}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,12"/>
+                                <Grid>
+                                    <PasswordBox x:Name="SudoBox" IsEnabled="{Binding CanEnterSudoPassword}" Style="{StaticResource SudoInput}"
+                                                 PasswordChanged="SudoPasswordChanged" AutomationProperties.Name="远端管理员密码"
+                                                 ToolTip="远端 Linux 用户执行 sudo 时的密码；SSH 密钥免密登录仍可能需要此密码。"/>
+                                    <TextBlock Text="输入管理员密码" Foreground="#96A0B2" Margin="12,0" VerticalAlignment="Center"
+                                               IsHitTestVisible="False" Visibility="{Binding SudoPlaceholderVisibility}"/>
+                                </Grid>
+                                <TextBlock Text="{Binding PrivilegeText}" Style="{StaticResource Caption}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
+                                <WrapPanel Margin="0,10,0,0">
+                                    <Button Content="准备依赖" Click="PrepareClicked" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0"/>
+                                    <Button Content="启用脱离登录运行" Click="LingerClicked" IsEnabled="{Binding IsIdle}"/>
+                                </WrapPanel>
+                                <TextBlock Text="{Binding OperationText}" Style="{StaticResource OperationMessage}" Visibility="{Binding IsEnvironmentBusy, Converter={StaticResource BoolVisibility}}"/>
+                            </StackPanel>
+                        </Border>
+                        <controls:LoadingBorder x:Name="EnvironmentLoading" IsActive="{Binding IsEnvironmentBusy}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,12">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="02   导入或选择配置" FontSize="15" FontWeight="SemiBold"/>
+                                <TextBlock Text="支持订阅链接和本机 YAML 文件，已有配置也可直接复用。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,9,0,12"/>
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="＋ 添加配置" Click="ImportClicked" IsEnabled="{Binding CanImport}" Margin="8,0,0,0"/>
+                                    <ComboBox x:Name="ProfileBox" ItemsSource="{Binding Profiles}" DisplayMemberPath="Name" IsEnabled="{Binding CanImport}"/>
+                                </DockPanel>
+                                <TextBlock Text="{Binding OperationText}" Style="{StaticResource OperationMessage}" Visibility="{Binding IsConfigurationBusy, Converter={StaticResource BoolVisibility}}"/>
+                            </StackPanel>
+                        </Border>
+                        <controls:LoadingBorder x:Name="ConfigurationLoading" IsActive="{Binding IsConfigurationBusy}"/>
+                    </Grid>
+                    <Grid>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="03   部署并启动" FontSize="15" FontWeight="SemiBold"/>
+                                <TextBlock Text="Linux amd64 / arm64 · systemd 用户服务 · 代理仅回环访问。已有系统内核可复用，新下载内核校验官方 SHA-256。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,9,0,12"/>
+                                <Button Content="部署并启动 Clash" Click="DeployClicked" Style="{StaticResource PrimaryButton}" IsEnabled="{Binding CanDeploy}" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding OperationText}" Style="{StaticResource OperationMessage}" Visibility="{Binding IsDeploymentBusy, Converter={StaticResource BoolVisibility}}"/>
+                            </StackPanel>
+                        </Border>
+                        <controls:LoadingBorder x:Name="DeploymentLoading" IsActive="{Binding IsDeploymentBusy}"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+            <Grid Grid.Row="2" Margin="0,15,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding StatusText}" Foreground="#6E7895" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <Button Grid.Column="1" Content="关闭向导" IsEnabled="{Binding IsIdle}" Click="CloseClicked"/>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

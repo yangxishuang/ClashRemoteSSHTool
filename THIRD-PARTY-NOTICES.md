@@ -1,6 +1,6 @@
 # 第三方组件与来源
 
-应用0.2.0；2026-10-20。本应用是独立WPF界面及SSH动作适配，未复制MetaCubeXD/Zashboard前端，也未修改服务器现有clashctl。开源复用集中在SSH库、.NET和远端mihomo。
+应用0.2.1；2026-10-20。本应用是独立WPF界面及SSH动作适配，未复制MetaCubeXD/Zashboard前端，也未修改服务器现有clashctl。开源复用集中在SSH库、.NET和远端mihomo。
 
 | 组件 | 版本 | 许可 / 来源 | 使用方式 |
 | --- | --- | --- | --- |

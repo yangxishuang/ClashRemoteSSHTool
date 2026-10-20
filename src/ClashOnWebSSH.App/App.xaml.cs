@@ -39,13 +39,30 @@ public partial class App : Application
                 if (tabIndex >= 0 && tabIndex + 1 < e.Args.Length && int.TryParse(e.Args[tabIndex + 1], out var tab)
                     && window.FindName("MainTabs") is System.Windows.Controls.TabControl tabs)
                     tabs.SelectedIndex = Math.Clamp(tab, 0, 3);
-                visual.UpdateLayout();
-                var image = new RenderTargetBitmap((int)visual.ActualWidth, (int)visual.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-                image.Render(visual);
-                var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(e.Args[renderIndex + 1]))!);
-                using (var file = File.Create(e.Args[renderIndex + 1])) encoder.Save(file);
-                window.Close(); Shutdown();
+                var busyIndex = Array.IndexOf(e.Args, "--busy-step");
+                var step = busyIndex >= 0 && busyIndex + 1 < e.Args.Length && int.TryParse(e.Args[busyIndex + 1], out var parsedStep) ? Math.Clamp(parsedStep, 0, 3) : 0;
+                var privilegeIndex = Array.IndexOf(e.Args, "--privilege");
+                var privileges = privilegeIndex >= 0 && privilegeIndex + 1 < e.Args.Length && Enum.TryParse<Core.RemotePrivilegeMode>(e.Args[privilegeIndex + 1], true, out var parsedPrivilege)
+                    ? parsedPrivilege : Core.RemotePrivilegeMode.PasswordRequired;
+                if (window is DeploymentWindow wizard) wizard.PreviewOperation(step, privileges);
+                void Capture()
+                {
+                    visual.UpdateLayout();
+                    var image = new RenderTargetBitmap((int)visual.ActualWidth, (int)visual.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+                    image.Render(visual);
+                    var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(e.Args[renderIndex + 1]))!);
+                    using (var file = File.Create(e.Args[renderIndex + 1])) encoder.Save(file);
+                    if (window is DeploymentWindow preview) preview.PreviewOperation(0, privileges);
+                    window.Close(); Shutdown();
+                }
+                if (window is DeploymentWindow && step > 0)
+                {
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
+                    timer.Tick += (_, _) => { timer.Stop(); Capture(); };
+                    timer.Start();
+                }
+                else Capture();
             });
         }
         else window.Show();

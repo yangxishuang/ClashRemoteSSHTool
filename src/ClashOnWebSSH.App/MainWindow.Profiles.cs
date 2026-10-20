@@ -119,6 +119,7 @@ internal sealed class RenameProfileWindow : Window
     public string Value => _input.Text.Trim();
     public RenameProfileWindow(string name)
     {
+        Style = (Style)Application.Current.FindResource(typeof(Window));
         Title = "重命名配置"; Width = 420; Height = 215; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = System.Windows.Media.Brushes.White;
         var panel = new StackPanel { Margin = new Thickness(24) };

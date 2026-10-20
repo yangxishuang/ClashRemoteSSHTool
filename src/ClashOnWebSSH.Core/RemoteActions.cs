@@ -71,6 +71,32 @@ public sealed class RemoteActions : IDisposable
         finally { _operations.Release(); }
     }
 
+    public async Task<RemotePrivilegeMode> CheckPrivilegesAsync(CancellationToken cancellation = default)
+    {
+        await _operations.WaitAsync(cancellation);
+        try
+        {
+            // A harmless shell command. -k with a command ignores cached authentication;
+            // a recent password-authenticated sudo must not be mistaken for NOPASSWD.
+            const string command = "if [ \"$(id -u)\" = 0 ]; then printf 'CLASHSSH_PRIVILEGE=root\\n'; " +
+                "elif ! command -v sudo >/dev/null 2>&1; then printf 'CLASHSSH_PRIVILEGE=unavailable\\n'; " +
+                "elif sudo -n -k -- sh -c ':' </dev/null >/dev/null 2>&1; then printf 'CLASHSSH_PRIVILEGE=passwordless\\n'; " +
+                "else printf 'CLASHSSH_PRIVILEGE=password\\n'; fi";
+            var result = await _transport.ExecuteAsync(command, "", TimeSpan.FromSeconds(25), cancellation);
+            if (result.ExitCode != 0) return RemotePrivilegeMode.Unknown;
+            var marker = result.Output.Split('\n').Select(line => line.Trim()).LastOrDefault(line => line.StartsWith("CLASHSSH_PRIVILEGE=", StringComparison.Ordinal));
+            return marker switch
+            {
+                "CLASHSSH_PRIVILEGE=root" => RemotePrivilegeMode.Root,
+                "CLASHSSH_PRIVILEGE=passwordless" => RemotePrivilegeMode.PasswordlessSudo,
+                "CLASHSSH_PRIVILEGE=password" => RemotePrivilegeMode.PasswordRequired,
+                "CLASHSSH_PRIVILEGE=unavailable" => RemotePrivilegeMode.SudoUnavailable,
+                _ => RemotePrivilegeMode.Unknown
+            };
+        }
+        finally { _operations.Release(); }
+    }
+
     public async Task<string> BootstrapAsync(string sudoPassword, bool enableLinger, CancellationToken cancellation = default)
     {
         await _operations.WaitAsync(cancellation);

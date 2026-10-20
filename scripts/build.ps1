@@ -1,4 +1,4 @@
-param([string]$RestoreSource, [switch]$NoPublish, [string]$OutputDirectory = 'artifacts/ClashOnWebSSH-0.2.0-win-x64')
+param([string]$RestoreSource, [switch]$NoPublish, [string]$OutputDirectory = 'artifacts/ClashOnWebSSH-0.2.1-win-x64')
 $ErrorActionPreference = 'Stop'
 $dotnetExe = & (Join-Path $PSScriptRoot 'Get-Dotnet.ps1')
 Push-Location (Split-Path $PSScriptRoot -Parent)

@@ -1,4 +1,4 @@
-<Window x:Class="ClashOnWebSSH.App.ProfileImportWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window Style="{StaticResource {x:Type Window}}" x:Class="ClashOnWebSSH.App.ProfileImportWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="添加配置" Width="540" Height="440" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" Background="#F5F7FC" FontFamily="Microsoft YaHei UI" FontSize="13" Foreground="#17243B">
     <Border Background="#F5F7FC"><Grid Margin="26"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Margin="0,0,0,18"><TextBlock Text="添加一个配置" FontSize="23" FontWeight="SemiBold"/><TextBlock Text="导入后保存在服务器，点击使用后才会生效。" Style="{StaticResource Caption}" Margin="0,7,0,0"/></StackPanel>
