@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
 using ClashOnWebSSH.Core;
+using ClashOnWebSSH.App.Controls;
 
 namespace ClashOnWebSSH.App;
 
@@ -52,7 +53,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     public DeploymentWindow(RemoteActions? remote, bool pythonAvailable, bool demo = false, string? preferredProfileId = null, KernelPackageStore? packages = null)
     {
         _remote = remote!; _python = pythonAvailable; _demo = demo; _preferredProfileId = preferredProfileId; _packages = packages;
-        InitializeComponent(); DataContext = this;
+        InitializeComponent(); InAppFeedback.Attach(this); DataContext = this;
         _operationTimer.Tick += (_, _) => PropertyChanged?.Invoke(this, new(nameof(OperationText)));
         Loaded += async (_, _) =>
         {
@@ -97,17 +98,19 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
         _progressGeneration++;
         _operationTimer.Stop(); _elapsed.Stop(); _busy = false; _activeStep = OperationStep.None; Notify();
     }
-    private async Task<bool> RunTask(OperationStep step, string title, Func<Task> operation)
+    private async Task<bool> RunTask(OperationStep step, string title, Func<Task> operation, Func<string>? successText = null)
     {
         if (_busy) return false;
-        if (_demo) { MessageBox.Show(this, "当前为向导演示，不执行服务器操作。", "界面预览"); return false; }
+        if (_demo) { InAppFeedback.Show(this, "当前为向导演示，不执行服务器操作。"); return false; }
+        InAppFeedback.Dismiss(this);
         BeginOperation(step, title);
         try
         {
             await Dispatcher.Yield(DispatcherPriority.Render);
-            await operation(); _status = title + "完成"; return true;
+            await operation(); _status = successText?.Invoke() ?? title + "完成";
+            InAppFeedback.Show(this, _status, NoticeKind.Success); return true;
         }
-        catch (Exception error) { _status = Redactor.Clean(error.Message); return false; }
+        catch (Exception error) { _status = Redactor.Clean(error.Message); InAppFeedback.Show(this, _status, NoticeKind.Error); return false; }
         finally { EndOperation(); }
     }
     // Only the explicit demo renderer uses these previews; they never execute SSH.
@@ -166,7 +169,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     {
         if (ProfileBox.SelectedItem is not ConfigurationProfile profile) { _status = "请先添加或选择一个配置。"; Notify(); return; }
         string? message = null;
-        if (await RunTask(OperationStep.Deployment, "部署并启动 Clash", async () =>
+        await RunTask(OperationStep.Deployment, "部署并启动 Clash", async () =>
         {
             var generation = ++_progressGeneration;
             _deploymentProgress = new("检查远端架构与已有内核"); Notify();
@@ -183,7 +186,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
             }
             catch (KernelAcquisitionException) { _showOfflineFallback = true; Notify(); throw; }
             await RefreshAsync(); message = result.Data.GetProperty("message").GetString();
-        })) MessageBox.Show(this, message, "部署结果", MessageBoxButton.OK, MessageBoxImage.Information);
+        }, () => message ?? "安装并启动成功");
     }
     private void CloseClicked(object sender, RoutedEventArgs e) => Close();
 }

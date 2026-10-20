@@ -20,7 +20,8 @@ public partial class App : Application
                 if (position + 1 < e.Args.Length) File.WriteAllText(e.Args[position + 1] + ".error.txt", args.Exception.ToString());
                 args.Handled = true; Shutdown(1); return;
             }
-            MessageBox.Show(Core.Redactor.Clean(args.Exception.Message), "Clash 遥控台", MessageBoxButton.OK, MessageBoxImage.Error);
+            var owner = Windows.OfType<Window>().FirstOrDefault(opened => opened.IsActive) ?? MainWindow;
+            if (owner != null) Controls.InAppFeedback.Show(owner, args.Exception.Message, Controls.NoticeKind.Error);
             args.Handled = true;
         };
         var renderIndex = Array.IndexOf(e.Args, "--render-demo");
@@ -48,7 +49,6 @@ public partial class App : Application
             window.Show();
             window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
             {
-                var visual = (FrameworkElement)window.Content;
                 var tabIndex = Array.IndexOf(e.Args, "--tab");
                 if (tabIndex >= 0 && tabIndex + 1 < e.Args.Length && int.TryParse(e.Args[tabIndex + 1], out var tab)
                     && (window.FindName("MainTabs") ?? window.FindName("ImportTabs")) is System.Windows.Controls.TabControl tabs)
@@ -64,8 +64,13 @@ public partial class App : Application
                     if (step == 3) wizard.PreviewDeployment(new("SSH 上传内核", 12 * 1048576, 24 * 1048576), false);
                     if (e.Args.Contains("--offline-fallback")) wizard.PreviewDeployment(new("自动获取内核失败"), true);
                 }
+                if (window is MainWindow main && e.Args.Contains("--collapsed"))
+                    ((System.Windows.Controls.Button)main.FindName("SidebarToggleButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                if (e.Args.Contains("--notice-success")) Controls.InAppFeedback.Show(window, "安装并启动成功；尚未启用 linger，请在向导中配置脱离登录运行。", Controls.NoticeKind.Success);
+                if (e.Args.Contains("--confirm-demo")) _ = Controls.InAppFeedback.ConfirmAsync(window, "首次连接，请核对可信主机指纹。\nSHA256:示例指纹", "确认 SSH 主机身份");
                 void Capture()
                 {
+                    var visual = (FrameworkElement)window.Content;
                     visual.UpdateLayout();
                     var image = new RenderTargetBitmap((int)visual.ActualWidth, (int)visual.ActualHeight, 96, 96, PixelFormats.Pbgra32);
                     image.Render(visual);
@@ -75,7 +80,7 @@ public partial class App : Application
                     if (window is DeploymentWindow preview) preview.PreviewOperation(0, privileges);
                     window.Close(); Shutdown();
                 }
-                if (window is DeploymentWindow && step > 0 || window is MainWindow)
+                if (window is DeploymentWindow && step > 0 || window is MainWindow || e.Args.Contains("--notice-success") || e.Args.Contains("--confirm-demo"))
                 {
                     var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
                     timer.Tick += (_, _) => { timer.Stop(); Capture(); };

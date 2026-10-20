@@ -2,7 +2,7 @@ using System.Net;
 
 namespace ClashOnWebSSH.Core;
 
-public sealed record DownloadedSubscription(string ContentBase64, string SubscriptionUserinfo);
+public sealed record DownloadedSubscription(string ContentBase64, string SubscriptionUserinfo, string SuggestedName = "");
 
 public sealed class SubscriptionDownloader(HttpMessageHandler? testHandler = null)
 {
@@ -39,6 +39,7 @@ public sealed class SubscriptionDownloader(HttpMessageHandler? testHandler = nul
 
     private static async Task<DownloadedSubscription> ReadAsync(HttpClient client, Uri target, CancellationToken cancellation)
     {
+        var source = target;
         for (var redirects = 0; redirects <= 5; redirects++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, Validate(target));
@@ -61,7 +62,7 @@ public sealed class SubscriptionDownloader(HttpMessageHandler? testHandler = nul
                 content.Write(buffer, 0, count);
             }
             var userinfo = response.Headers.TryGetValues("subscription-userinfo", out var values) ? string.Join(";", values) : "";
-            return new(Convert.ToBase64String(content.ToArray()), userinfo[..Math.Min(userinfo.Length, 2048)]);
+            return new(Convert.ToBase64String(content.ToArray()), userinfo[..Math.Min(userinfo.Length, 2048)], SubscriptionNames.FromResponse(response, source));
         }
         throw new InvalidOperationException("订阅站重定向次数过多。");
     }

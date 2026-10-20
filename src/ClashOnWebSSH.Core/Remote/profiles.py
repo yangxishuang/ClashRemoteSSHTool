@@ -217,6 +217,7 @@ def profiles_mutate(request):
     if action == "profiles.update":
         if entry["kind"] != "url":
             raise ValueError("YAML文件没有远程订阅来源，请重新导入文件")
+        suggested = profile_name(request["suggestedName"]) if entry["name"] == "新的订阅配置" and request.get("suggestedName") else None
         url = validate_url(profile_file(request, identity, ".url").read_text(encoding="utf-8"))
         raw, metadata = profile_source(dict(request, kind="url", url=url))
         validate_profile_content(request, raw)
@@ -225,6 +226,8 @@ def profiles_mutate(request):
             catalog["activeHash"] = file_hash(config_path(request))
         atomic_write(profile_file(request, identity, ".yaml"), raw)
         entry.update(metadata)
+        if suggested:
+            entry["name"] = suggested
         save_catalog(request, catalog)
         return {"profile": safe_profile(entry, active == identity), "applied": active == identity}
     if action == "profiles.rename":

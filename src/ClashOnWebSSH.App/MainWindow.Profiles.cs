@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using ClashOnWebSSH.Core;
+using ClashOnWebSSH.App.Controls;
 
 namespace ClashOnWebSSH.App;
 
@@ -44,7 +45,7 @@ public partial class MainWindow
     {
         if ((sender as Button)?.Tag is not ConfigurationProfile profile) return;
         if (!_installed) { await ShowDeploymentWizard(profile.Id); return; }
-        if (!_demo && !Confirm($"使用「{profile.Name}」替换当前运行配置并重启服务？\n连接参数和回环监听会保留，失败将尝试恢复旧配置。", "切换配置")) return;
+        if (!_demo && !await ConfirmAsync($"使用「{profile.Name}」替换当前运行配置并重启服务？\n连接参数和回环监听会保留，失败将尝试恢复旧配置。", "切换配置")) return;
         await Run("切换配置", async () => { await _remote!.InvokeAsync("profiles.apply", new { profileId = profile.Id }); await RefreshState(); });
     }
     private async void UpdateProfileClicked(object sender, RoutedEventArgs e)
@@ -53,12 +54,12 @@ public partial class MainWindow
     }
     private async Task UpdateConfiguration(ConfigurationProfile profile)
     {
-        if (!_demo && profile.Active && !Confirm($"「{profile.Name}」正在使用，更新成功后会重启服务。继续？", "更新当前配置")) return;
+        if (!_demo && profile.Active && !await ConfirmAsync($"「{profile.Name}」正在使用，更新成功后会重启服务。继续？", "更新当前配置")) return;
         await Run("更新订阅配置", async () =>
         {
             var source = await _remote!.InvokeAsync("profiles.source", new { profileId = profile.Id });
             var download = await new SubscriptionDownloader().DownloadAsync(source.Data.GetProperty("url").GetString()!);
-            await _remote.InvokeAsync("profiles.update", new { profileId = profile.Id, contentBase64 = download.ContentBase64, subscriptionUserinfo = download.SubscriptionUserinfo });
+            await _remote.InvokeAsync("profiles.update", new { profileId = profile.Id, contentBase64 = download.ContentBase64, subscriptionUserinfo = download.SubscriptionUserinfo, suggestedName = download.SuggestedName });
             await RefreshState();
         });
     }
@@ -78,7 +79,7 @@ public partial class MainWindow
         var delete = new MenuItem { Header = "删除配置", IsEnabled = profile.CanDelete };
         delete.Click += async (_, _) =>
         {
-            if (!Confirm("删除「" + profile.Name + "」及其远端保存的来源？", "删除配置")) return;
+            if (!await ConfirmAsync("删除「" + profile.Name + "」及其远端保存的来源？", "删除配置")) return;
             await Run("删除配置", async () => { await _remote!.InvokeAsync("profiles.delete", new { profileId = profile.Id }); await RefreshProfiles(); });
         };
         menu.Items.Add(refresh); menu.Items.Add(rename); menu.Items.Add(new Separator()); menu.Items.Add(delete);
@@ -104,12 +105,13 @@ public partial class MainWindow
         JsonElement plan = default;
         await Run("读取卸载清单", async () => plan = (await _remote!.InvokeAsync("uninstall.plan")).Data);
         if (plan.ValueKind != JsonValueKind.Object || new UninstallWindow(plan) { Owner = this }.ShowDialog() != true) return;
+        var message = "卸载完成";
         await Run("移除并卸载当前服务", async () =>
         {
             var result = await _remote!.InvokeAsync("uninstall", new { confirmService = plan.GetProperty("service").GetString(), confirmationToken = plan.GetProperty("confirmationToken").GetString() });
             await RefreshState();
-            MessageBox.Show(this, Text(result.Data, "message"), "卸载结果", MessageBoxButton.OK, MessageBoxImage.Information);
-        });
+            message = Text(result.Data, "message");
+        }, () => message);
     }
 }
 

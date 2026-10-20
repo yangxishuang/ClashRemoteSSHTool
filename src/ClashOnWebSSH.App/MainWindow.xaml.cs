@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using ClashOnWebSSH.Core;
+using ClashOnWebSSH.App.Controls;
 
 namespace ClashOnWebSSH.App;
 
@@ -58,6 +59,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         NodesView = CollectionViewSource.GetDefaultView(Nodes);
         NodesView.Filter = item => item is NodeRow row && (string.IsNullOrWhiteSpace(SearchBox?.Text) || row.Name.Contains(SearchBox.Text, StringComparison.OrdinalIgnoreCase));
         InitializeComponent();
+        InAppFeedback.Attach(this);
         DataContext = this;
         var profile = _settings.Load();
         HostBox.Text = profile.Host; UserBox.Text = profile.Username; PortBox.Text = profile.Port.ToString();
@@ -66,8 +68,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (demo) Loaded += (_, _) => LoadDemo();
         Closing += (_, e) =>
         {
-            if (_busy && MessageBox.Show(this, "操作尚未结束，退出后可能无法确认远端结果。仍然退出？", "操作进行中", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-            { e.Cancel = true; return; }
+            if (_busy)
+            { e.Cancel = true; InAppFeedback.Show(this, "操作正在执行，请等待结果后关闭窗口。", NoticeKind.Information); return; }
             _remote?.Dispose(); _remote = null;
             LoginPassword.Clear(); SudoPassword.Clear();
         };
@@ -96,28 +98,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         profile.Validate(); return profile;
     }
 
-    private async Task Run(string title, Func<Task> operation)
+    internal async Task Run(string title, Func<Task> operation, Func<string>? successText = null)
     {
         if (_busy) return;
-        if (_demo) { MessageBox.Show(this, "当前是界面演示，不会连接或修改任何服务器。", "界面预览"); return; }
+        if (_demo) { InAppFeedback.Show(this, "当前是界面演示，不会连接或修改任何服务器。"); return; }
+        InAppFeedback.Dismiss(this);
         _busy = true; SetStatus(title + "…"); Notify();
         try
         {
             await operation();
-            SetStatus(title + "完成");
-            AddLog(title + "完成");
+            var message = successText?.Invoke() ?? title + "完成";
+            SetStatus(message); AddLog(message);
+            InAppFeedback.Show(this, message, NoticeKind.Success);
         }
         catch (Exception exception)
         {
             var message = Redactor.Clean(exception.Message);
             SetStatus(title + "失败：" + message); AddLog(title + "失败：" + message);
-            MessageBox.Show(this, message, title + "失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+            InAppFeedback.Show(this, title + "失败：" + message, NoticeKind.Error);
         }
         finally { _busy = false; Notify(); }
     }
 
-    private bool Confirm(string message, string title = "确认操作") =>
-        MessageBox.Show(this, message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+    private Task<bool> ConfirmAsync(string message, string title = "确认操作") => InAppFeedback.ConfirmAsync(this, message, title);
 
     private void AuthChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -142,7 +145,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 var trust = new HostKeyStore(_settings.DirectoryPath);
                 transport = new PasswordSshTransport(profile, LoginPassword.Password, identity => trust.Verify(identity, host =>
-                    Dispatcher.Invoke(() => Confirm($"首次连接 {host.Host}:{host.Port}\n\n{host.Algorithm}\n{host.Fingerprint}\n\n请与服务器可信指纹核对。确认信任该主机？", "确认 SSH 主机身份"))));
+                    Dispatcher.InvokeAsync(() => ConfirmAsync($"首次连接 {host.Host}:{host.Port}\n\n{host.Algorithm}\n{host.Fingerprint}\n\n请与服务器可信指纹核对。确认信任该主机？", "确认 SSH 主机身份")).Task.Unwrap().GetAwaiter().GetResult()));
             }
             else transport = new OpenSshTransport(profile);
             var actions = new RemoteActions(profile, transport);
@@ -195,11 +198,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : $"远端尚未检测到 Clash。{Text(data, "platform")} / {Text(data, "architecture")} · YAML {(Flag(data, "yaml") ? "就绪" : "需准备")} · 用户服务 {(Flag(data, "systemdUser") ? "可用" : "需检查")}。填入订阅后可部署。";
         if (Flag(data, "apiAvailable"))
         {
-            var previous = _group?.Name;
             var groups = await _remote.InvokeAsync("groups");
-            var list = JsonSerializer.Deserialize<List<ProxyGroup>>(groups.Data.GetProperty("groups").GetRawText(), _json) ?? new();
-            Groups.Clear(); foreach (var group in list) Groups.Add(group);
-            GroupBox.SelectedItem = Groups.FirstOrDefault(g => g.Name == previous) ?? Groups.FirstOrDefault(g => g.Name == "宝可梦") ?? Groups.FirstOrDefault();
+            ApplyGroups(groups.Data);
         }
         else
         {
@@ -255,7 +255,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async Task ServiceAction(string action)
     {
-        if (action != "start" && !_demo && !Confirm("这会影响服务器正在使用的代理连接。确认" + (action == "stop" ? "停止" : "重启") + "服务？")) return;
+        if (action != "start" && !_demo && !await ConfirmAsync("这会影响服务器正在使用的代理连接。确认" + (action == "stop" ? "停止" : "重启") + "服务？")) return;
         await Run("服务操作", async () => { await _remote!.InvokeAsync("service", new { operation = action }); await RefreshState(); });
     }
     private async void StartClicked(object sender, RoutedEventArgs e) => await ServiceAction("start");
@@ -266,16 +266,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Clipboard.SetText($"export http_proxy=http://127.0.0.1:{_mixedPort} https_proxy=http://127.0.0.1:{_mixedPort} all_proxy=socks5://127.0.0.1:{_mixedPort}");
         SetStatus("已复制；请粘贴到需要使用代理的远端终端执行。撤销：unset http_proxy https_proxy all_proxy");
     }
-    private async void ConnectivityClicked(object sender, RoutedEventArgs e) => await Run("代理连通检查", async () =>
+    private async void ConnectivityClicked(object sender, RoutedEventArgs e)
     {
-        var result = await _remote!.InvokeAsync("connectivity");
-        MessageBox.Show(this, $"远端代理测试完成\nHTTP {result.Data.GetProperty("httpStatus")} · {result.Data.GetProperty("elapsedMs")} ms\n目标：www.gstatic.com", "连通检查", MessageBoxButton.OK, MessageBoxImage.Information);
-    });
+        var summary = "远端代理测试完成";
+        await Run("代理连通检查", async () =>
+        {
+            var result = await _remote!.InvokeAsync("connectivity");
+            summary = $"远端代理测试完成 · HTTP {result.Data.GetProperty("httpStatus")} · {result.Data.GetProperty("elapsedMs")} ms · 目标：www.gstatic.com";
+        }, () => summary);
+    }
 
     private async Task Bootstrap(bool linger)
     {
         var title = linger ? "启用脱离登录运行" : "准备系统依赖";
-        if (!_demo && !Confirm(linger ? "将通过 loginctl 为当前 SSH 用户开启 linger，允许用户服务在退出后运行。需要 root 或 sudo。继续？" : "将在远端安装 Python 3、PyYAML 和 CA 证书。支持 apt/dnf/yum，需要 root 或 sudo。继续？", title)) return;
+        if (!_demo && !await ConfirmAsync(linger ? "将通过 loginctl 为当前 SSH 用户开启 linger，允许用户服务在退出后运行。需要 root 或 sudo。继续？" : "将在远端安装 Python 3、PyYAML 和 CA 证书。支持 apt/dnf/yum，需要 root 或 sudo。继续？", title)) return;
         await Run(title, async () =>
         {
             try { AddLog(await _remote!.BootstrapAsync(SudoPassword.Password, linger)); await RefreshMaintenancePrivilegesAsync(); await RefreshState(); }

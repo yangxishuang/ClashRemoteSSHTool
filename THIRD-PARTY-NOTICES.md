@@ -1,6 +1,6 @@
 # 第三方组件与来源
 
-应用0.3.1；2026-10-20。本应用是独立WPF界面及SSH动作适配，未复制MetaCubeXD/Zashboard前端，也未修改服务器现有clashctl。开源复用集中在SSH库、.NET和远端mihomo。
+应用0.3.2；2026-10-20。本应用是独立WPF界面及SSH动作适配，未复制MetaCubeXD/Zashboard前端，也未修改服务器现有clashctl。开源复用集中在SSH库、.NET和远端mihomo。
 
 | 组件 | 版本 | 许可 / 来源 | 使用方式 |
 | --- | --- | --- | --- |
@@ -18,3 +18,5 @@
 开发SDK为10.0.402，官方SDK压缩包已校验SHA-512；SDK及开发期Paramiko、PyYAML不随EXE分发。mihomo版本/下载哈希共用Remote/kernel-manifest.json；更新内核版本时须同步官方哈希、来源、文档及安装测试。GH-Proxy和GHFast为第三方加速服务，未作为组件打包；详见docs/KERNEL-DEPLOYMENT.md。
 
 界面设计参考：用户提供的D:/Codes/FlClash-main源码（GPL-3.0），阅读主题、表面、圆角、导航及过渡实现后使用WPF独立重绘；本轮不分发FlClash的Flutter组件、图标、字体或图片。参考文件及本项目参数见docs/FLCLASH-UI.md。
+
+0.3.2另阅读FlClash的lib/models/profile.dart、lib/common/request.dart及lib/providers/state/proxies.dart，参考响应文件名和按模式过滤分组的行为，用C#/Python独立实现。新增交互规格与验证见docs/INTERACTION-AND-NAMING.md。

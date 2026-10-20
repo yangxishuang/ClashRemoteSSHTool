@@ -17,6 +17,7 @@ public partial class MainWindow
     public Visibility SidebarTextVisibility => _sidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
     public Thickness SidebarInsets => new(_sidebarExpanded ? 12 : 4, 20, _sidebarExpanded ? 12 : 4, 18);
     public Thickness SidebarItemPadding => new(_sidebarExpanded ? 13 : 8, 0, _sidebarExpanded ? 13 : 8, 0);
+    public Thickness SidebarHeaderMargin => new(_sidebarExpanded ? 3 : 0, 0, 0, 24);
     public string PageTitle => (MainTabs?.SelectedIndex ?? 4) switch
     { 0 => "代理节点", 1 => "配置", 2 => "运行日志", 3 => "服务管理", 5 => "SSH 连接", _ => "概览" };
     public string PageSubtitle => (MainTabs?.SelectedIndex ?? 4) switch

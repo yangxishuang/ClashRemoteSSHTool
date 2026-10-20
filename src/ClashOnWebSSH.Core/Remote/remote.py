@@ -190,14 +190,34 @@ def probe(request):
 
 def groups(request):
     proxies = api(request, "/proxies").get("proxies", {})
+    config = current_config(config_path(request))
+    mode = api(request, "/configs").get("mode", config.get("mode", "rule"))
+    declared = [item for item in config.get("proxy-groups", []) if isinstance(item, dict) and isinstance(item.get("name"), str)]
+    available = {name: value for name, value in proxies.items() if isinstance(value, dict) and isinstance(value.get("all"), list)}
+    hidden = {item["name"] for item in declared if item.get("hidden") is True}
+    hidden.update(name for name, value in available.items() if value.get("hidden") is True)
+    if declared:
+        order = [item["name"] for item in declared if item["name"] in available]
+    else:
+        # GLOBAL.all follows configuration order on kernels that expose groups as a map.
+        order = [name for name in available.get("GLOBAL", {}).get("all", []) if name in available and name != "GLOBAL"]
+        order += [name for name in available if name not in order and name != "GLOBAL"]
+    if mode == "global" and "GLOBAL" in available:
+        order.insert(0, "GLOBAL")
+    elif mode == "direct":
+        order = []
+    else:
+        order = [name for name in order if name not in hidden and name != "GLOBAL"]
     result = []
-    for name, value in proxies.items():
-        if "all" not in value:
+    for name in dict.fromkeys(order):
+        value = available[name]
+        if mode == "rule" and name in hidden:
             continue
         result.append({"name": name, "type": value.get("type", ""), "current": value.get("now", ""),
                        "members": [{"name": item, "type": proxies.get(item, {}).get("type", ""),
                                     "current": item == value.get("now")} for item in value.get("all", [])]})
-    return {"groups": result}
+    return {"groups": result, "mode": mode, "defaultGroup": result[0]["name"] if result else "",
+            "configurationHash": file_hash(config_path(request))}
 
 
 def select_node(request):

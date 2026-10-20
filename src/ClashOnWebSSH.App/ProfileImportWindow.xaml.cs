@@ -9,13 +9,14 @@ public partial class ProfileImportWindow : Window
 {
     public ProfileImportData? Result { get; private set; }
     public ProfileImportWindow() { InitializeComponent(); Closed += (_, _) => UrlBox.Clear(); }
+    private void NameChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    { if (NamePlaceholder != null) NamePlaceholder.Visibility = NameBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed; }
     private void BrowseClicked(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Title = "导入 YAML 配置", Filter = "YAML 配置|*.yaml;*.yml", CheckFileExists = true };
         if (dialog.ShowDialog(this) == true)
         {
             FileBox.Text = dialog.FileName;
-            if (NameBox.Text == "新的订阅配置") NameBox.Text = Path.GetFileNameWithoutExtension(dialog.FileName);
         }
     }
     private async void ImportClicked(object sender, RoutedEventArgs e)
@@ -24,7 +25,7 @@ public partial class ProfileImportWindow : Window
         try
         {
             var name = NameBox.Text.Trim();
-            if (name.Length == 0 || name.Any(char.IsControl)) throw new ArgumentException("请填写有效的配置名称。");
+            if (name.Any(char.IsControl)) throw new ArgumentException("配置名称不能包含控制字符。");
             if (ImportTabs.SelectedIndex == 0)
             {
                 var url = UrlBox.Password.Trim();
