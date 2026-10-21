@@ -46,8 +46,9 @@ def rollback(state_path):
                         request = urllib.request.Request("http://127.0.0.1:%d/configs" % state["apiPort"], headers={"Authorization": "Bearer " + state.get("secret", "")})
                         with opener.open(request, timeout=2) as response:
                             actual = json.loads(response.read(1024 * 1024))
-                        if bool(actual.get("tun", {}).get("enable")) == state.get("originalTun", False):
+                        if bool(actual.get("tun", {}).get("enable")) == state.get("originalTun", False) and actual.get("mode", "rule") == state.get("originalMode", "rule"):
                             state["phase"] = "rolled-back"
+                            state.update(state.get("previousTakeover", {}))
                             break
                     except Exception:
                         pass

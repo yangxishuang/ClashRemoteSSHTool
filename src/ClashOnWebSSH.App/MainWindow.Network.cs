@@ -11,34 +11,49 @@ namespace ClashOnWebSSH.App;
 
 public partial class MainWindow
 {
-    private bool _networkKnown, _networkApiAvailable, _systemProxyEnabled, _proxySupported, _tunEnabled, _tunReady, _tunPending, _tunDevice, _tunRunning;
+    private bool _networkKnown, _networkApiAvailable, _systemProxyEnabled, _proxySupported, _tunEnabled, _tunConfigured, _tunReady, _tunPending, _tunDevice, _tunRunning;
     private string _tunReason = "连接服务器后检查设备与权限。", _networkOperation = "";
+    private bool _takeoverKnown, _bothOff, _directConfirmed;
+    private string _takeoverMode = "";
     private bool _testingSites;
     public bool IsNetworkChanging => _busy && !_testingSites && _networkOperation.Length > 0;
     public bool IsSitesTesting => _busy && _testingSites;
     public ObservableCollection<WebsiteRow> Sites { get; } = new([new("chatgpt", "ChatGPT", "✳"), new("github", "GitHub", "GH"), new("google", "Google", "G"), new("grok", "Grok", "𝕏")]);
     public bool SystemProxyEnabled => _networkKnown && _systemProxyEnabled;
-    public bool TunEnabled => _networkKnown && _tunEnabled;
+    public bool TunEnabled => _networkKnown && (_tunEnabled || _tunConfigured);
     public bool CanReadNetwork => CanOperate && _connected;
-    public bool CanChangeSystemProxy => CanReadNetwork && _networkKnown && _proxySupported && !_tunPending && (_installed || _systemProxyEnabled);
-    public bool CanChangeTun => CanReadNetwork && _networkKnown && !_tunPending && (_tunEnabled || _tunReady);
+    public bool CanChangeSystemProxy => CanReadNetwork && _networkKnown && _proxySupported && !_tunPending && (_installed ? _networkApiAvailable : _systemProxyEnabled);
+    public bool CanChangeTun => CanReadNetwork && _networkKnown && _networkApiAvailable && !_tunPending && (_tunEnabled || _tunConfigured || _tunReady);
     public bool CanPrepareTun => CanReadNetwork && _networkKnown && _tunDevice && _tunRunning && !_tunPending;
     public bool CanTestSites => CanReadNetwork && _installed && _networkKnown && _networkApiAvailable && _tunRunning;
+    public bool CanRestoreDirect => CanReadNetwork && _networkKnown && _takeoverKnown && _bothOff && !_directConfirmed && _networkApiAvailable && _tunRunning && !_tunPending && _proxySupported;
+    public Visibility RestoreDirectVisibility => _connected && _networkKnown && _takeoverKnown && _bothOff && !_directConfirmed ? Visibility.Visible : Visibility.Collapsed;
+    public string TakeoverText => !_connected ? "两个开关都关闭时，服务器恢复直连。" : !_networkKnown || !_takeoverKnown ? "网络接管状态尚未确认，请刷新。"
+        : !_networkApiAvailable ? "内核状态未确认，请先启动服务或刷新。" : _tunPending ? "正在确认 TUN 连通，失败将自动回退。"
+        : _bothOff ? _directConfirmed ? "已恢复直连 · 旧终端无需清理代理变量。" : "两个开关均关闭，点击“恢复直连”停止使用代理出口。"
+        : _takeoverMode == "direct" ? "代理入口已开启 · 当前内核为直连模式。" : "正在使用" + (_takeoverMode == "global" ? "全局代理" : "规则分流") + " · 双关将恢复直连。";
+    public string WebsiteTestHint => _networkKnown && _directConfirmed ? "从服务器直连测量 HTTPS 响应时间" : "从服务器按当前网络设置测量 HTTPS 响应时间";
     public Visibility ConnectPromptVisibility => _connected ? Visibility.Collapsed : Visibility.Visible;
     public Visibility TunPreparationVisibility => _connected && _installed && _networkKnown && !_tunReady && !_tunEnabled ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NetworkOperationVisibility => _networkOperation.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     public string NetworkOperationText => _networkOperation;
     public Brush ServiceSurface => (Brush)FindResource(_service == "运行中" ? "SuccessSurface" : "Block");
-    public string SystemProxyHint => !_connected ? "连接后可开启；已有终端和程序不受影响。" : !_networkKnown ? "尚未读取状态，请刷新。" : !_proxySupported ? "当前登录 shell 不支持自动加载。" : _systemProxyEnabled ? "已开启 · 新终端自动使用远端代理。" : "已关闭 · 开启后对新终端生效。";
-    public string TunHint => !_connected ? "连接服务器后检查设备与权限。" : !_networkKnown ? "状态未确认，请刷新检查。" : _tunPending ? "正在确认 SSH 连通；失败将在约 75 秒后自动回退。" : _tunEnabled ? "已开启 · 内网与 SSH 客户端地址保持直连。" : _tunReason;
+    public string SystemProxyHint => !_connected ? "新终端自动配置；双关时旧终端也可直连。" : !_networkKnown ? "尚未读取状态，请刷新。" : !_proxySupported ? "当前登录 shell 不支持自动加载。" : _installed && !_networkApiAvailable ? "请先启动服务或恢复管理接口，再切换。" : _systemProxyEnabled ? "已开启 · 新终端自动使用远端代理。" : "已关闭 · 双关直连状态见下方。";
+    public string TunHint => !_connected ? "连接服务器后检查设备与权限。" : !_networkKnown ? "状态未确认，请刷新检查。" : _tunPending ? "正在确认 SSH 连通；失败将在约 75 秒后自动回退。" : _tunConfigured && !_tunEnabled && _networkApiAvailable ? "配置已开启但内核未启用，可关闭后恢复直连。" : _tunEnabled ? "已开启 · 内网与 SSH 客户端地址保持直连。" : _tunReason;
 
     internal void ApplyNetworkStatus(JsonElement data)
     {
         var proxy = data.GetProperty("systemProxy"); var tun = data.GetProperty("tun");
         _systemProxyEnabled = Flag(proxy, "enabled"); _proxySupported = Flag(proxy, "supported");
-        _tunEnabled = Flag(tun, "enabled"); _tunReady = Flag(tun, "ready"); _tunPending = Flag(tun, "pending");
+        _tunEnabled = Flag(tun, "enabled"); _tunConfigured = Flag(tun, "configured"); _tunReady = Flag(tun, "ready"); _tunPending = Flag(tun, "pending");
         _tunDevice = Flag(tun, "device"); _tunRunning = Flag(tun, "running");
         _networkApiAvailable = Text(tun, "apiError").Length == 0;
+        _takeoverKnown = data.TryGetProperty("takeover", out var takeover);
+        _bothOff = _takeoverKnown && Flag(takeover, "bothOff");
+        _directConfirmed = _takeoverKnown && Flag(takeover, "directConfirmed");
+        _takeoverMode = _takeoverKnown ? Text(takeover, "mode") : "";
+        if (_networkApiAvailable && _takeoverKnown)
+            _mode = _takeoverMode switch { "direct" => "直连", "global" => "全局代理", "rule" => "规则分流", _ => "—" };
         _tunReason = !_tunDevice ? "缺少 /dev/net/tun，需服务器管理员开放设备。"
             : !_tunRunning ? "请先启动代理服务。" : !Flag(tun, "capable") ? "需要管理员准备网络权限。"
             : !Flag(tun, "linger") ? "需要启用脱离登录运行，以便失联时自动回退。"
@@ -53,24 +68,34 @@ public partial class MainWindow
         try { ApplyNetworkStatus((await _remote.InvokeAsync("network.status")).Data); }
         catch { _networkKnown = false; Notify(); throw; }
     }
-    private async Task RecheckNetwork()
+    private async Task RecheckNetwork(bool routing = false)
     {
-        try { await RefreshNetwork(); }
+        try
+        {
+            await RefreshNetwork();
+            if (routing && _networkApiAvailable && _remote is not null)
+            {
+                ApplyGroups((await _remote.InvokeAsync("groups")).Data);
+                await RefreshProfiles();
+            }
+        }
         catch (Exception error) { AddLog("网络状态未确认：" + Redactor.Clean(error.Message)); }
     }
     private async void RefreshNetworkClicked(object sender, RoutedEventArgs e) => await Run("刷新网络状态", RefreshNetwork);
-    private async void SystemProxyClicked(object sender, RoutedEventArgs e)
+    private async void SystemProxyClicked(object sender, RoutedEventArgs e) => await ChangeSystemProxy(((ToggleButton)sender).IsChecked == true);
+    private async void RestoreDirectClicked(object sender, RoutedEventArgs e)
+    { if (CanRestoreDirect) await ChangeSystemProxy(false); }
+    private async Task ChangeSystemProxy(bool enabled)
     {
-        var enabled = ((ToggleButton)sender).IsChecked == true;
         Notify();
         var message = "系统代理设置已确认";
-        _networkOperation = "正在设置当前用户的新终端代理…";
+        _networkOperation = "正在切换系统代理与直连状态…";
         try
         {
-            await Run("设置新终端代理", async () =>
+            await Run(enabled ? "开启系统代理" : "关闭系统代理并核验直连", async () =>
             {
                 try { message = Text((await _remote!.InvokeAsync("network.system-proxy", new { enabled })).Data, "message", message); }
-                finally { await RecheckNetwork(); }
+                finally { await RecheckNetwork(true); }
                 if (!_networkKnown) throw new InvalidOperationException("命令已返回，但最新状态未能确认；请刷新后再操作。");
             }, () => message);
         }
@@ -83,7 +108,7 @@ public partial class MainWindow
         if (_demo) { await Run("切换 TUN", () => Task.CompletedTask); return; }
         if (!await ConfirmAsync(enabled
             ? "将重启远端代理并启用 TUN，接管服务器流量。内网及当前 SSH 客户端地址保持直连。若客户端无法重新确认 SSH 连通，约 75 秒后自动恢复原配置。\n\n确认开启？"
-            : "将关闭远端 TUN 并重启代理。当前用户的新终端代理开关独立保留。\n\n确认关闭？", "切换 TUN 虚拟网卡")) { Notify(); return; }
+            : "将关闭远端 TUN 并重启代理。若系统代理也已关闭，将恢复直连；旧终端无需清理代理变量。已有代理连接会重新建立。\n\n确认关闭？", "切换 TUN 虚拟网卡")) { Notify(); return; }
         _networkOperation = enabled ? "正在开启 TUN 并重新确认 SSH 连通…" : "正在关闭 TUN 并核验状态…";
         var message = "TUN 状态已确认";
         try
@@ -91,7 +116,7 @@ public partial class MainWindow
             await Run("切换 TUN", async () =>
             {
                 try { message = Text((await _remote!.SetTunAsync(enabled)).Data, "message", message); }
-                finally { await RecheckNetwork(); }
+                finally { await RecheckNetwork(true); }
             }, () => message);
         }
         finally { _networkOperation = ""; Notify(); }
@@ -110,7 +135,7 @@ public partial class MainWindow
         if (!CanTestSites || selected.Count == 0) return;
         foreach (var row in selected) row.Start();
         _testingSites = true;
-        _networkOperation = "正在从服务器测试网站 HTTPS 响应…";
+        _networkOperation = "正在按服务器当前网络设置测试网站 HTTPS 响应…";
         try
         {
             await Run("网站测试", async () =>
@@ -129,10 +154,17 @@ public partial class MainWindow
         if (disconnected) { _service = "尚未连接"; _installed = false; _version = "—"; _mode = "—"; _port = "等待连接"; Groups.Clear(); Nodes.Clear(); _group = null; }
         else
         {
-            ApplyNetworkStatus(JsonSerializer.SerializeToElement(new { systemProxy = new { enabled = true, supported = true }, tun = new { enabled = false, capable = false, device = true, linger = true, timer = true, running = true, ready = false } }));
+            ApplyNetworkStatus(JsonSerializer.SerializeToElement(new { systemProxy = new { enabled = true, supported = true }, takeover = new { bothOff = false, mode = "rule", directConfirmed = false }, tun = new { enabled = false, capable = false, device = true, linger = true, timer = true, running = true, ready = false } }));
             var delays = new[] { 468, 257, 192, 523 };
             for (var i = 0; i < Sites.Count; i++) Sites[i].Apply(JsonSerializer.SerializeToElement(new { delay = delays[i], httpStatus = 200, message = "连接正常 · 演示数据" }));
         }
+        Notify();
+    }
+    internal void PreviewTakeover(bool restored)
+    {
+        if (!_demo) throw new InvalidOperationException("仅用于界面预览。");
+        ApplyNetworkStatus(JsonSerializer.SerializeToElement(new { systemProxy = new { enabled = false, supported = true }, takeover = new { bothOff = true, mode = restored ? "direct" : "rule", directConfirmed = restored }, tun = new { enabled = false, capable = false, device = true, linger = true, timer = true, running = true, ready = false } }));
+        if (restored) { Groups.Clear(); Nodes.Clear(); _group = null; }
         Notify();
     }
 }

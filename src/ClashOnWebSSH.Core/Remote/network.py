@@ -61,7 +61,7 @@ def system_proxy_status():
     return {"enabled": active, "supported": supported, "scope": "当前用户新终端"}
 
 
-def set_system_proxy(request):
+def set_proxy_environment(request):
     enabled = request.get("enabled")
     if type(enabled) is not bool:
         raise ValueError("代理开关值必须为布尔值")
@@ -118,6 +118,128 @@ def set_system_proxy(request):
     return dict(actual, message="已为当前用户开启新终端代理；已有终端和程序保持原环境" if enabled else "已关闭新终端自动代理；已有终端需重新打开或自行取消环境变量")
 
 
+def takeover_plan(config, runtime, state, proxy_enabled, tun_enabled):
+    actual = runtime.get("mode", config.get("mode", "rule"))
+    if actual not in ("rule", "global", "direct"):
+        raise RuntimeError("无法确认内核运行模式，未切换代理")
+    owned_direct = state.get("directOverride") is True and actual == config.get("mode") == "direct"
+    resume = state.get("resumeMode", "rule") if owned_direct else actual
+    if resume not in ("rule", "global", "direct"):
+        raise RuntimeError("保存的代理模式无效，未切换代理")
+    enabled = proxy_enabled or tun_enabled
+    return {"resumeMode": resume, "directOverride": not enabled, "appliedMode": resume if enabled else "direct"}
+
+
+def takeover_status(config, runtime, state, proxy, api_error):
+    mode = runtime.get("mode", "")
+    both_off = not proxy["enabled"] and not runtime.get("tun", {}).get("enable", False) and not config.get("tun", {}).get("enable", False)
+    return {"bothOff": both_off, "mode": mode, "resumeMode": state.get("resumeMode", mode),
+            "directConfirmed": not api_error and both_off and mode == config.get("mode") == "direct"}
+
+
+def snapshot_proxy_files():
+    result = {}
+    for path in [proxy_env_path()] + shell_files():
+        if path.exists() and (not path.is_file() or path.stat().st_size > MAX_CONFIG):
+            raise ValueError("终端配置不是可管理的普通小文件")
+        result[path] = (path.read_bytes(), path.stat().st_mode & 0o777) if path.exists() else None
+    return result
+
+
+def restore_proxy_files(originals, expected):
+    for path, before in originals.items():
+        actual = (path.read_bytes(), path.stat().st_mode & 0o777) if path.exists() else None
+        if actual == before:
+            continue
+        if actual != expected[path]:
+            raise RuntimeError("终端配置出现外部修改，未覆盖")
+        if before is None:
+            path.unlink()
+        else:
+            atomic_write(path, *before)
+
+
+def set_system_proxy(request):
+    import yaml
+    enabled = request.get("enabled")
+    if type(enabled) is not bool:
+        raise ValueError("代理开关值必须为布尔值")
+    path = private_path(config_path(request))
+    # Uninstalled servers can still remove their managed shell settings.
+    if not path.is_file():
+        if enabled:
+            raise RuntimeError("请先部署并启动代理服务")
+        result = set_proxy_environment(request)
+        return dict(result, message="已关闭终端自动代理；当前未部署服务")
+    original = path.read_bytes()
+    config = load_yaml(original)
+    runtime = api(request, "/configs")
+    previous = read_network_state(request)
+    plan = takeover_plan(config, runtime, previous, enabled, bool(runtime.get("tun", {}).get("enable")) or bool(config.get("tun", {}).get("enable")))
+    candidate = copy.deepcopy(config)
+    candidate["mode"] = plan["appliedMode"]
+    content = original if candidate == config else yaml.safe_dump(candidate, allow_unicode=True, sort_keys=False).encode("utf-8")
+    if content != original:
+        with tempfile.TemporaryDirectory(prefix=".clashonweb-mode-check-", dir=path.parent) as staging:
+            staged = pathlib.Path(staging) / "candidate.yaml"
+            staged.write_bytes(content)
+            os.chmod(staged, 0o600)
+            verify_core(core_binary(request), staged, path.parent)
+    originals = snapshot_proxy_files()
+    expected = originals
+    if file_hash(path) != hashlib.sha256(original).hexdigest():
+        raise RuntimeError("配置已被其他程序修改，未切换代理")
+    state_path = private_path(network_state_path(request))
+    old_state = state_path.read_bytes() if state_path.exists() else None
+    catalog = read_catalog(request)
+    state = dict(previous, **plan)
+    state.update(phase="active" if runtime.get("tun", {}).get("enable") or config.get("tun", {}).get("enable") else "off", beforeHash=hashlib.sha256(original).hexdigest(),
+                 afterHash=hashlib.sha256(content).hexdigest(), profileId=current_profile_id(request, catalog), catalogHash=catalog.get("activeHash", ""))
+    before_mode = runtime.get("mode", config.get("mode", "rule"))
+    mode_changed = before_mode != plan["appliedMode"]
+    try:
+        if content != original:
+            atomic_write(path, content)
+        if mode_changed:
+            api(request, "/configs", "PATCH", {"mode": plan["appliedMode"]})
+        actual = api(request, "/configs")
+        if actual.get("mode") != plan["appliedMode"]:
+            raise RuntimeError("内核模式切换未确认")
+        set_proxy_environment(request)
+        expected = snapshot_proxy_files()
+        network_dir(request)
+        atomic_write(state_path, json.dumps(state).encode())
+        # Existing CONNECT/keepalive sessions otherwise retain their old outbound.
+        if mode_changed or plan["directOverride"]:
+            api(request, "/connections", "DELETE")
+        actual = api(request, "/configs")
+        if actual.get("mode") != plan["appliedMode"] or file_hash(path) != state["afterHash"] or system_proxy_status()["enabled"] != enabled:
+            raise RuntimeError("代理设置发生变化，未确认最终状态")
+    except Exception as error:
+        try:
+            restore_proxy_files(originals, expected)
+            if file_hash(path) not in (state["beforeHash"], state["afterHash"]):
+                raise RuntimeError("运行配置出现外部修改，未覆盖")
+            actual_mode = api(request, "/configs").get("mode")
+            if actual_mode not in (before_mode, plan["appliedMode"]):
+                raise RuntimeError("内核模式出现外部修改，未覆盖")
+            atomic_write(path, original)
+            if actual_mode != before_mode:
+                api(request, "/configs", "PATCH", {"mode": before_mode})
+            if api(request, "/configs").get("mode") != before_mode:
+                raise RuntimeError("原模式未确认恢复")
+            if old_state is None:
+                if state_path.exists():
+                    state_path.unlink()
+            else:
+                atomic_write(state_path, old_state)
+        except Exception:
+            raise RuntimeError("代理切换与恢复未能全部确认，请刷新或通过 SSH 检查；不要重复提交")
+        raise RuntimeError("代理切换失败，原环境与模式已恢复：" + str(error))
+    message = "系统代理已开启，已恢复原运行模式" if enabled else "系统代理已关闭；TUN 仍在接管流量" if not plan["directOverride"] else "两个开关均已关闭，已恢复直连；旧终端无需清理代理变量"
+    return dict(system_proxy_status(), mode=plan["appliedMode"], message=message)
+
+
 def trusted_system_core():
     for name in ("/usr/bin/verge-mihomo", "/usr/bin/mihomo"):
         path = pathlib.Path(name).resolve()
@@ -158,7 +280,8 @@ def network_status(request):
         api_error = "管理接口暂不可达"
     caps = tun_capabilities(request)
     state = read_network_state(request)
-    return {"systemProxy": system_proxy_status(), "tun": dict(caps,
+    proxy = system_proxy_status()
+    return {"systemProxy": proxy, "takeover": takeover_status(config, runtime, state, proxy, api_error), "tun": dict(caps,
             enabled=bool(runtime.get("tun", {}).get("enable", False)), configured=bool(config.get("tun", {}).get("enable", False)),
             pending=state.get("phase") == "pending", apiError=api_error),
             "architecture": platform.machine(), "trustedSystemCore": bool(trusted_system_core())}
@@ -206,7 +329,7 @@ def test_sites(request):
                 "message": "连接正常" if 200 <= status < 400 else "已响应，访问受限" if status in (401, 403, 429) else "网站返回错误"}
     keys = list(SITE_TARGETS) if selected == "all" else [selected]
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        return {"results": list(pool.map(single, keys)), "via": "远端当前代理", "sampledAt": time.time()}
+        return {"results": list(pool.map(single, keys)), "via": "远端当前网络设置", "sampledAt": time.time()}
 
 
 def tun_dropin(request):
@@ -326,9 +449,10 @@ def set_tun(request):
     original = path.read_bytes()
     config = load_yaml(original)
     runtime = api(request, "/configs")
-    if bool(runtime.get("tun", {}).get("enable")) == enabled and bool(config.get("tun", {}).get("enable")) == enabled:
-        return {"enabled": enabled, "transaction": "", "message": "TUN 已开启" if enabled else "TUN 已关闭"}
     state = read_network_state(request)
+    plan = takeover_plan(config, runtime, state, system_proxy_status()["enabled"], enabled)
+    if bool(runtime.get("tun", {}).get("enable")) == enabled and bool(config.get("tun", {}).get("enable")) == enabled and runtime.get("mode", "rule") == config.get("mode", "rule") == plan["appliedMode"]:
+        return {"enabled": enabled, "transaction": "", "message": "TUN 已开启" if enabled else "TUN 已关闭"}
     if enabled:
         if not tun_capabilities(request)["ready"]:
             raise RuntimeError("TUN 运行条件尚未满足，请先准备权限并启用脱离登录运行")
@@ -341,6 +465,7 @@ def set_tun(request):
                 candidate["dns"] = state["originalDns"]
             else:
                 candidate.pop("dns", None)
+    candidate["mode"] = plan["appliedMode"]
     content = yaml.safe_dump(candidate, allow_unicode=True, sort_keys=False).encode("utf-8")
     with tempfile.TemporaryDirectory(prefix=".clashonweb-tun-check-", dir=path.parent) as staging:
         staged = pathlib.Path(staging) / "candidate.yaml"
@@ -351,13 +476,15 @@ def set_tun(request):
         raise RuntimeError("配置已被其他程序修改，未切换 TUN")
     transaction = uuid.uuid4().hex
     catalog = read_catalog(request)
-    new_state = {"phase": "pending" if enabled else "off", "transaction": transaction, "service": service_name(request), "config": str(path),
+    new_state = dict(plan, phase="pending" if enabled else "off", transaction=transaction)
+    new_state.update({"service": service_name(request), "config": str(path),
+                 "previousTakeover": {key: state.get(key) for key in ("resumeMode", "directOverride", "appliedMode")}, "originalMode": config.get("mode", "rule"),
                  "profileId": current_profile_id(request, catalog), "catalogHash": catalog.get("activeHash", ""),
                  "beforeHash": hashlib.sha256(original).hexdigest(), "afterHash": hashlib.sha256(content).hexdigest(),
                  "timer": "clashonweb-tun-" + transaction, "deadline": time.time() + 75,
                  "apiPort": int(request.get("apiPort", 9090)), "secret": config.get("secret", ""), "originalTun": bool(config.get("tun", {}).get("enable")),
                  "hadDns": "dns" in config, "originalDns": config.get("dns"),
-                 "appliedDnsHash": hashlib.sha256(json.dumps(candidate.get("dns"), sort_keys=True).encode()).hexdigest()}
+                 "appliedDnsHash": hashlib.sha256(json.dumps(candidate.get("dns"), sort_keys=True).encode()).hexdigest()})
     if enabled:
         schedule_rollback(request, new_state, original)
     try:
@@ -365,8 +492,8 @@ def set_tun(request):
         run(["systemctl", "--user", "restart", service_name(request)], timeout=30)
         wait_api(request)
         actual = api(request, "/configs")
-        if bool(actual.get("tun", {}).get("enable")) != enabled:
-            raise RuntimeError("内核未确认 TUN 状态")
+        if bool(actual.get("tun", {}).get("enable")) != enabled or actual.get("mode", "rule") != plan["appliedMode"]:
+            raise RuntimeError("内核未确认 TUN 或直连状态")
         if enabled:
             verify_tun_device(candidate)
     except Exception:
@@ -378,6 +505,7 @@ def set_tun(request):
             wait_api(request)
             if enabled:
                 new_state["phase"] = "rolled-back"
+                new_state.update(new_state["previousTakeover"])
                 atomic_write(network_state_path(request), json.dumps(new_state).encode())
                 run(["systemctl", "--user", "stop", new_state["timer"] + ".timer"], check=False)
         except Exception:
@@ -386,14 +514,16 @@ def set_tun(request):
     if not enabled:
         network_dir(request)
         atomic_write(network_state_path(request), json.dumps(new_state).encode())
-    return {"enabled": enabled, "transaction": transaction if enabled else "", "message": "TUN 已暂时开启，等待客户端确认" if enabled else "TUN 已关闭"}
+    return {"enabled": enabled, "transaction": transaction if enabled else "", "mode": plan["appliedMode"],
+            "message": "TUN 已暂时开启，等待客户端确认" if enabled else "两个开关均已关闭，已恢复直连；旧终端无需清理代理变量" if plan["directOverride"] else "TUN 已关闭，系统代理仍开启"}
 
 
 def confirm_tun(request):
     state = read_network_state(request)
     if state.get("phase") != "pending" or request.get("transaction") != state.get("transaction") or time.time() >= state.get("deadline", 0) - 5:
         raise RuntimeError("TUN 确认已过期，请等待自动回退后刷新")
-    if file_hash(config_path(request)) != state.get("afterHash") or not api(request, "/configs").get("tun", {}).get("enable"):
+    actual = api(request, "/configs")
+    if file_hash(config_path(request)) != state.get("afterHash") or not actual.get("tun", {}).get("enable") or actual.get("mode", "rule") != state.get("appliedMode", "rule"):
         raise RuntimeError("TUN 状态发生变化，未取消自动回退")
     verify_tun_device(current_config(config_path(request)))
     run(["systemctl", "--user", "stop", state["timer"] + ".timer"])

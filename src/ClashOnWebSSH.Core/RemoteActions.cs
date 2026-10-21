@@ -72,7 +72,7 @@ public sealed partial class RemoteActions : IDisposable
                     payload[entry.Name] = entry.Value;
                 }
             var seconds = action is "deploy" or "update" or "profiles.import" or "profiles.preview" or "profiles.apply" or "profiles.update" ? 600
-                : action == "delay" ? 2400 : action is "service" or "uninstall" or "network.tun.prepare" ? 120 : action == "network.tun.set" ? 65 : action.StartsWith("network.") ? 45 : 25;
+                : action == "delay" ? 2400 : action is "service" or "uninstall" or "network.tun.prepare" ? 120 : action is "network.tun.set" or "network.system-proxy" ? 240 : action.StartsWith("network.") ? 45 : 25;
             var network = action.StartsWith("network.");
             var input = (network ? EncodeScript(NetworkScript) + "\n" : "") + JsonSerializer.Serialize(payload, WireJson);
             var result = await _transport.ExecuteAsync(network ? NetworkCommand : ScriptCommand, input, TimeSpan.FromSeconds(seconds), cancellation);
