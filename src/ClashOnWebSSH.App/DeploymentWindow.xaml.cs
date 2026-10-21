@@ -22,6 +22,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     private RemotePrivilegeMode _privileges = RemotePrivilegeMode.Unknown;
     private OperationStep _activeStep;
     private string _status = "先检查依赖，再导入一个配置。", _operationTitle = "";
+    private string _details = "";
     private DeploymentProgress _deploymentProgress = new("准备部署");
     private bool _showOfflineFallback;
     private int _progressGeneration;
@@ -40,6 +41,8 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     public bool IsDeploymentBusy => _busy && _activeStep == OperationStep.Deployment;
     public string OperationText => $"{_operationTitle} · 已用时 {(int)_elapsed.Elapsed.TotalMinutes:00}:{_elapsed.Elapsed.Seconds:00}";
     public string StatusText => _status;
+    public string DetailsText => _details;
+    public Visibility DetailsVisibility => _details.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string PrivilegeText => !_privilegesChecked ? "正在检查管理员权限…" : _privileges switch
     {
         RemotePrivilegeMode.Root => "当前以 root 登录，无需输入管理员密码。",
@@ -90,6 +93,7 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
     }
     private void BeginOperation(OperationStep step, string title)
     {
+        _details = ""; DetailsExpander.IsExpanded = false;
         _busy = true; _activeStep = step; _operationTitle = title; _status = title + "…";
         _elapsed.Restart(); _operationTimer.Start(); Notify();
     }
@@ -110,8 +114,23 @@ public partial class DeploymentWindow : Window, INotifyPropertyChanged
             await operation(); _status = successText?.Invoke() ?? title + "完成";
             InAppFeedback.Show(this, _status, NoticeKind.Success); return true;
         }
-        catch (Exception error) { _status = Redactor.Clean(error.Message); InAppFeedback.Show(this, _status, NoticeKind.Error); return false; }
+        catch (Exception error) { ShowFailure(error, title); return false; }
         finally { EndOperation(); }
+    }
+    private void ShowFailure(Exception error, string title)
+    {
+        _details = Redactor.Clean(error.Message);
+        _status = error is KernelAcquisitionException ? _details.Split('\n')[0]
+            : _details.Contains("test failed", StringComparison.OrdinalIgnoreCase) ? "配置校验未通过，Clash 尚未启动。请展开详细日志查看原因。"
+            : _details.Contains("couldn't find ip", StringComparison.OrdinalIgnoreCase) ? "资源下载时域名解析失败，请展开详细日志查看目标。"
+            : _details.Length > 180 || _details.Contains('\n') ? title + "失败，请展开详细日志查看原因。" : _details;
+        InAppFeedback.Show(this, _status, NoticeKind.Error);
+        Notify();
+    }
+    internal void PreviewFailure()
+    {
+        if (!_demo) throw new InvalidOperationException("仅用于界面预览。");
+        ShowFailure(new InvalidOperationException(string.Join('\n', Enumerable.Repeat("level=error msg=\"GeoSite 数据检查失败（演示）\"", 12)) + "\ncandidate.yaml test failed"), "部署");
     }
     // Only the explicit demo renderer uses these previews; they never execute SSH.
     internal void PreviewOperation(int step, RemotePrivilegeMode privileges)

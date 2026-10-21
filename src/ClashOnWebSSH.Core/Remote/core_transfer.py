@@ -45,6 +45,16 @@ def cached_core():
 
 
 def receive_core(stream=None):
+    def accept(header):
+        asset = core_asset()
+        if (header.get("version") != CORE_MANIFEST["version"] or header.get("asset") != asset["asset"]
+                or header.get("sha256") != asset["sha256"]):
+            raise ValueError("内核上传版本、架构或大小不匹配")
+        return core_cache_path(create=True), asset["sha256"]
+    return receive_verified_blob(stream, accept)
+
+
+def receive_verified_blob(stream, accept):
     stream = stream or sys.stdin.buffer
     temporary = None
     try:
@@ -52,12 +62,10 @@ def receive_core(stream=None):
         if len(line) > 4096 or not line.endswith(b"\n"):
             raise ValueError("内核上传头无效")
         header = json.loads(line)
-        asset = core_asset()
         size = header.get("size")
-        if (header.get("version") != CORE_MANIFEST["version"] or header.get("asset") != asset["asset"]
-                or header.get("sha256") != asset["sha256"] or type(size) is not int or not 0 < size <= MAX_CORE_PACKAGE):
+        if type(size) is not int or not 0 < size <= MAX_CORE_PACKAGE:
             raise ValueError("内核上传版本、架构或大小不匹配")
-        target = core_cache_path(create=True)
+        target, expected = accept(header)
         digest = hashlib.sha256()
         with tempfile.NamedTemporaryFile(prefix=".upload-", dir=target.parent, delete=False) as output:
             temporary = pathlib.Path(output.name)
@@ -73,11 +81,11 @@ def receive_core(stream=None):
                 raise ValueError("内核上传长度超出声明")
             output.flush()
             os.fsync(output.fileno())
-        if digest.hexdigest() != asset["sha256"]:
+        if digest.hexdigest() != expected:
             raise ValueError("内核上传 SHA-256 不匹配")
         os.chmod(temporary, 0o600)
         os.replace(temporary, target)
-        return {"version": CORE_MANIFEST["version"], "asset": asset["asset"], "size": size, "sha256": digest.hexdigest()}
+        return {"version": header["version"], "asset": header["asset"], "size": size, "sha256": digest.hexdigest()}
     finally:
         if temporary and temporary.exists():
             temporary.unlink()

@@ -13,5 +13,8 @@
     <EmbeddedResource Include="Remote/bootstrap.sh" LogicalName="bootstrap.sh" />
     <EmbeddedResource Include="Remote/core_transfer.py" LogicalName="core_transfer.py" />
     <EmbeddedResource Include="Remote/kernel-manifest.json" LogicalName="kernel-manifest.json" />
+    <EmbeddedResource Include="Remote/geodata-manifest.json" LogicalName="geodata-manifest.json" />
+    <EmbeddedResource Include="Remote/geodata.py" LogicalName="geodata.py" />
+    <EmbeddedResource Include="Bundled/*" LogicalName="bundled.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

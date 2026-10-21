@@ -63,6 +63,7 @@ public partial class App : Application
                     wizard.PreviewOperation(step, privileges);
                     if (step == 3) wizard.PreviewDeployment(new("SSH 上传内核", 12 * 1048576, 24 * 1048576), false);
                     if (e.Args.Contains("--offline-fallback")) wizard.PreviewDeployment(new("自动获取内核失败"), true);
+                    if (e.Args.Contains("--deployment-error")) wizard.PreviewFailure();
                 }
                 if (window is MainWindow main && e.Args.Contains("--collapsed"))
                     ((System.Windows.Controls.Button)main.FindName("SidebarToggleButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));

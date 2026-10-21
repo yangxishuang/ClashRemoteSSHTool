@@ -19,7 +19,8 @@ public sealed partial class RemoteActions : IDisposable
         using var reader = new StreamReader(stream, Encoding.UTF8);
         return reader.ReadToEnd();
     }
-    private static string CoreScript => "CORE_MANIFEST = __import__('json').loads(" + JsonSerializer.Serialize(Resource("kernel-manifest.json")) + ")\n" + Resource("core_transfer.py");
+    private static string CoreScript => "CORE_MANIFEST = __import__('json').loads(" + JsonSerializer.Serialize(Resource("kernel-manifest.json")) + ")\n" + Resource("core_transfer.py")
+        + "\nGEODATA_MANIFEST = __import__('json').loads(" + JsonSerializer.Serialize(Resource("geodata-manifest.json")) + ")\n" + Resource("geodata.py");
     public static string Script { get; } = CoreScript + "\n" + Resource("profiles.py") + "\n" + Resource("remote.py");
     public static string ScriptCommand { get; } = BuildScriptCommand(Script);
     private static string NetworkScript { get; } = "__name__='clashssh_network'\n" + Script +

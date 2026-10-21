@@ -36,10 +36,12 @@ public sealed class KernelPackageStore
     public const long MaxPackageBytes = 64 * 1024 * 1024;
     private readonly string _directory;
     private readonly HttpMessageHandler? _testHandler;
-    public KernelPackageStore(string? directory = null, HttpMessageHandler? handler = null)
+    private readonly bool _bundledFallback;
+    public KernelPackageStore(string? directory = null, HttpMessageHandler? handler = null, bool bundledFallback = true)
     {
         _directory = directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClashOnWebSSH", "kernels");
         _testHandler = handler;
+        _bundledFallback = bundledFallback;
     }
     private string CachePath(KernelRelease release) => Path.Combine(_directory, release.FileName);
 
@@ -90,7 +92,19 @@ public sealed class KernelPackageStore
             }
             if (overall.IsCancellationRequested) break;
         }
-        throw new KernelAcquisitionException("自动获取内核失败，可重试或选择离线包 " + release.FileName + "。\n" + string.Join("\n", failures));
+        cancellation.ThrowIfCancellationRequested();
+        var pinned = KernelRelease.ForArchitecture(release.ElfMachine == 62 ? "x86_64" : "aarch64");
+        if (_bundledFallback && release == pinned)
+        {
+            progress?.Report(new("在线源不可用，使用内置内核 " + release.Version));
+            try
+            {
+                return await BundledPackages.ExtractAsync(release.FileName, cached,
+                    (path, token) => ValidateAsync(path, release, token), cancellation).ConfigureAwait(false);
+            }
+            catch (InvalidDataException) { failures.Add("内置内核校验失败"); }
+        }
+        throw new KernelAcquisitionException("在线及内置内核均不可用，可重试或选择离线包 " + release.FileName + "。\n" + string.Join("\n", failures));
     }
 
     public async Task<string> ImportAsync(string file, KernelRelease release, IProgress<DeploymentProgress>? progress = null, CancellationToken cancellation = default)

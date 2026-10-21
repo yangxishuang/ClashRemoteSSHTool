@@ -83,14 +83,14 @@
                         <ui:SmoothBorder Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="03   部署并启动" FontSize="15" FontWeight="SemiBold"/>
-                                <TextBlock Text="已有内核直接复用；否则本机自动从加速源或官方源下载，校验后通过 SSH 上传，无需手动下载。支持 Linux amd64 / arm64。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,9,0,12"/>
+                                <TextBlock Text="优先复用内核和缓存，自动尝试加速源与官方源；在线失败时使用内置内核。GeoData 由本机准备并经 SSH 上传，无需服务器下载。支持 Linux amd64 / arm64。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,9,0,12"/>
                                 <Button Content="部署并启动 Clash" Click="DeployClicked" Style="{StaticResource PrimaryButton}" IsEnabled="{Binding CanDeploy}" HorizontalAlignment="Left"/>
                                 <StackPanel Visibility="{Binding IsDeploymentBusy, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
                                     <ProgressBar x:Name="KernelProgressBar" Style="{StaticResource KernelProgress}" Minimum="0" Maximum="100" Value="{Binding DeploymentPercent, Mode=OneWay}" IsIndeterminate="{Binding IsDeploymentIndeterminate}"/>
                                     <TextBlock Text="{Binding DeploymentProgressText}" Style="{StaticResource Caption}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                 </StackPanel>
                                 <StackPanel Visibility="{Binding ShowOfflineFallback, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
-                                    <TextBlock Text="自动获取未成功，可再次点击部署重试，也可使用已准备的对应版本 .gz 内核包。" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="在线及内置内核均不可用，可重试或选择对应版本 .gz 内核包。" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                                     <Button Content="选择离线内核包并部署" Click="OfflineDeployClicked" IsEnabled="{Binding CanDeploy}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
                                 </StackPanel>
                                 <TextBlock Text="{Binding OperationText}" Style="{StaticResource OperationMessage}" Visibility="{Binding IsDeploymentBusy, Converter={StaticResource BoolVisibility}}"/>
@@ -102,8 +102,13 @@
             </ScrollViewer>
             <Grid Grid.Row="2" Margin="0,15,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <Button Grid.Column="1" Content="关闭向导" IsEnabled="{Binding IsIdle}" Click="CloseClicked"/>
+                <StackPanel Margin="0,0,12,0">
+                    <TextBlock x:Name="StatusLine" Text="{Binding StatusText}" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" MaxHeight="52"/>
+                    <Expander x:Name="DetailsExpander" Header="查看详细日志" Visibility="{Binding DetailsVisibility}" Margin="0,8,0,0" Foreground="{DynamicResource Ink}">
+                        <TextBox Text="{Binding DetailsText, Mode=OneWay}" IsReadOnly="True" MaxHeight="150" MinHeight="70" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" TextWrapping="Wrap" FontFamily="Consolas, Microsoft YaHei UI" FontSize="11" Background="{DynamicResource Block}" Foreground="{DynamicResource Ink}" Margin="0,6,0,0"/>
+                    </Expander>
+                </StackPanel>
+                <Button Grid.Column="1" Content="关闭向导" IsEnabled="{Binding IsIdle}" Click="CloseClicked" Height="40" VerticalAlignment="Top"/>
             </Grid>
         </Grid>
     </ui:SmoothBorder>

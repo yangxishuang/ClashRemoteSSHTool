@@ -30,6 +30,8 @@ HOME = pathlib.Path.home()
 MAX_CONFIG = 10 * 1024 * 1024
 if "cached_core" not in globals():
     exec(compile(pathlib.Path(__file__).with_name("core_transfer.py").read_text(encoding="utf-8"), "core_transfer.py", "exec"))
+if "geodata_plan" not in globals():
+    exec(compile(pathlib.Path(__file__).with_name("geodata.py").read_text(encoding="utf-8"), "geodata.py", "exec"))
 VERSION = CORE_MANIFEST["version"]
 ASSETS = {key: (value["asset"], value["sha256"]) for key, value in CORE_MANIFEST["assets"].items()}
 
@@ -479,11 +481,14 @@ def deploy(request):
     content = yaml.safe_dump(candidate, allow_unicode=True, sort_keys=False).encode("utf-8")
     created = []
     started = False
+    geodata_changes = []
     try:
         if executable is not None:
             atomic_write(binary, executable, 0o700)
             created.append(binary)
         config.parent.mkdir(parents=True, exist_ok=True)
+        if request.get("preparedGeodata"):
+            geodata_changes = prepare_geodata(request)
         with tempfile.TemporaryDirectory(prefix=".clashonweb-install-", dir=str(config.parent)) as staging:
             staged = pathlib.Path(staging) / "candidate.yaml"
             staged.write_bytes(content)
@@ -508,6 +513,7 @@ def deploy(request):
                 path.unlink()
         if created:
             run(["systemctl", "--user", "daemon-reload"], check=False)
+        restore_geodata(geodata_changes)
         raise
     if request.get("profileId"):
         catalog["activeId"] = entry["id"]
@@ -568,7 +574,8 @@ def execute(request):
         return {"installed": state["installed"], "systemdUser": state["systemdUser"],
                 "coreAvailable": state["coreAvailable"], "architecture": platform.machine(),
                 "cached": False if state["coreAvailable"] else cached_core() is not None,
-                "version": VERSION, "asset": asset["asset"], "sha256": asset["sha256"]}
+                "version": VERSION, "asset": asset["asset"], "sha256": asset["sha256"],
+                "geodata": geodata_plan() if request.get("profileId") and not state["installed"] else []}
     if action == "groups":
         return groups(request)
     if action == "profiles.list":

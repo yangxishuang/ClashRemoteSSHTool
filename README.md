@@ -2,7 +2,7 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.4.4，2026-10-21。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261021-0.4.4.md)
+**版本0.5.0，2026-10-21。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261021-0.5.0.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
@@ -19,7 +19,7 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 - 订阅链接/YAML导入、配置卡片、流量/到期、切换、更新、重命名及删除；切换保护固定设置并支持失败恢复。
 - 无Clash主动打开部署向导；已有服务显示管理及卸载，配置库保留以便重新部署。
 - 部署步骤卡片显示边框加载动画、当前任务和计时；管理员密码框自动识别root/免密sudo，使用猫咪应用图标。
-- 内核由本机自动从加速源/官方源下载，校验并缓存后经SSH上传，显示字节进度；离线包导入仅作为自动获取失败后的后备入口。
+- 内核由本机自动从加速源/官方源下载，校验并缓存后经SSH上传，显示字节进度；在线源不可用时自动使用内置内核；四类GeoData由本机内置数据准备并上传，手动包仅作为最后后备。
 - 订阅自动读取来源名称，普通操作结果用应用内绿色/红色提示；折叠导航居中，默认分组遵循配置顺序和运行模式。
 
 - 概览可开关系统代理与远端TUN；双关恢复直连，旧终端无需清理变量，重新开启恢复原模式。提供ChatGPT/GitHub/Google/Grok网站测试。
@@ -41,10 +41,10 @@ python -m pip install -r tests/requirements.txt
 powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 ```
 
-产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约141MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。旧EXE保留，关闭旧版后运行新EXE，连接设置沿用。
+产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
 
-104项Python隔离、53项C#本地/协议及46项WPF交互检查通过，共203项。本轮新增单行四项布局、标题不溢出测量及小字移除断言，未连接真实服务器；0.4.3的GitHub修复实测（HTTP206、526ms）及历史真实验证见对应记录。两种架构内核及上传验证见0.3.1，真实订阅导入见0.2记录。
+117项Python、61项C#本地/回环SSH及48项WPF检查通过，共226项。真实mihomo在全新目录、Geo下载地址不可用时，使用内置数据通过DNS fallback/geosite、GEOIP两种模式及ASN校验；缺少GeoSite的反例正确失败。本轮未连接真实服务器，不等同于干净Linux完整部署验收。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 
-当前基线 **DESKTOP-SSH-1.3**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络控制见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-010](docs/adr/ADR-010-REMOTE-NETWORK-CONTROLS.md)/[ADR-011](docs/adr/ADR-011-TAKEOVER-DIRECT.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。
+当前基线 **DESKTOP-SSH-1.4**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络控制见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-010](docs/adr/ADR-010-REMOTE-NETWORK-CONTROLS.md)/[ADR-011](docs/adr/ADR-011-TAKEOVER-DIRECT.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。

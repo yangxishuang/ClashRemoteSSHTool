@@ -183,7 +183,10 @@ def validate_profile_content(request, raw):
     import yaml
     candidate = protect_config(load_yaml(raw), current_config(config_path(request)), request)
     binary = core_binary(request)
-    if binary:
+    # A bare core may still lack its GEO files. Fresh installs validate after
+    # DeployAsync has transferred the pinned resources, rather than downloading
+    # them during subscription import.
+    if binary and config_path(request).is_file():
         with tempfile.TemporaryDirectory(prefix="clashonweb-profile-check-") as directory:
             for name in ("Country.mmdb", "GeoSite.dat", "GeoIP.dat", "geosite.dat", "geoip.dat", "ASN.mmdb"):
                 cached = config_path(request).parent / name
