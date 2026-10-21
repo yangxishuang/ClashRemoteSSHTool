@@ -152,7 +152,13 @@ def service_info(request):
     return dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
 
 
-def core_binary():
+def core_binary(request=None):
+    if request:
+        override = HOME / ".config/systemd/user" / (service_name(request) + ".d") / "70-clashonweb-tun.conf"
+        if override.is_file() and override.read_text().startswith("# ClashOnWebSSH TUN permissions"):
+            binary = pathlib.Path("/usr/local/lib/clashonweb-tun") / str(os.getuid()) / "mihomo"
+            if binary.is_file():
+                return str(binary)
     for candidate in [shutil.which("verge-mihomo"), str(HOME / ".local/share/clashonweb/bin/mihomo"), shutil.which("mihomo"), "/usr/bin/verge-mihomo"]:
         if candidate and pathlib.Path(candidate).is_file():
             return str(candidate)
@@ -162,7 +168,7 @@ def core_binary():
 def probe(request):
     service = service_info(request)
     config = config_path(request)
-    binary = core_binary()
+    binary = core_binary(request)
     user_manager = False
     if shutil.which("systemctl"):
         user_manager = run(["systemctl", "--user", "show-environment"], check=False).returncode == 0
@@ -371,7 +377,7 @@ def apply_configuration(request, raw):
     config = config_path(request)
     if not config.is_file() or config.is_symlink():
         raise ValueError("现有配置不存在，或是符号链接；请先检查环境")
-    binary = core_binary()
+    binary = core_binary(request)
     if not binary:
         raise RuntimeError("未找到 mihomo，请先部署")
     original = config.read_bytes()
@@ -442,7 +448,7 @@ def deploy(request):
     check_free_port(7890)
     config = config_path(request)
     unit = HOME / ".config/systemd/user" / service_name(request)
-    existing_binary = core_binary()
+    existing_binary = core_binary(request)
     binary = pathlib.Path(existing_binary) if existing_binary else HOME / ".local/share/clashonweb/bin/mihomo"
     if unit.exists() or config.exists() or (not existing_binary and binary.exists()):
         raise RuntimeError("目标文件已存在，不覆盖安装")
@@ -524,10 +530,36 @@ def control_lock():
         yield
 
 
+def network_state_path(request):
+    scope = hashlib.sha256((str(config_path(request)) + "\n" + service_name(request)).encode()).hexdigest()[:16]
+    return HOME / ".cache/clashonweb/network" / scope / "state.json"
+
+
+def read_network_state(request):
+    path = network_state_path(request)
+    if not path.exists():
+        return {}
+    try:
+        if path.is_symlink() or path.stat().st_size > MAX_CONFIG:
+            raise ValueError()
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        raise RuntimeError("TUN 操作记录无法读取，请通过 SSH 核对网络状态")
+
+
+def ensure_network_settled(request):
+    if read_network_state(request).get("phase") == "pending":
+        raise RuntimeError("TUN 正等待连通确认或自动回退，请稍后刷新再操作")
+
+
 def execute(request):
     action = request.get("action")
     service_name(request)
     config_path(request)
+    if isinstance(action, str) and action.startswith("network."):
+        if "network_execute" not in globals():
+            exec(compile(pathlib.Path(__file__).with_name("network.py").read_text(encoding="utf-8"), "network.py", "exec"), globals())
+        return network_execute(request)
     if action == "probe":
         return probe(request)
     if action == "core.status":
@@ -562,6 +594,7 @@ def execute(request):
     if action not in ("select", "mode", "service", "update", "deploy", "profiles.import", "profiles.apply", "profiles.update", "profiles.rename", "profiles.delete", "uninstall"):
         raise ValueError("不支持的远端动作")
     with control_lock():
+        ensure_network_settled(request)
         if action.startswith("profiles."):
             return profiles_mutate(request)
         if action == "uninstall":

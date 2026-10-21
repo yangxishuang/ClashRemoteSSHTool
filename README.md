@@ -2,7 +2,7 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.3.2，2026-10-20。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261020-0.3.2.md)
+**版本0.4.0，2026-10-21。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261021-0.4.0.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
@@ -18,7 +18,10 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 - 内核由本机自动从加速源/官方源下载，校验并缓存后经SSH上传，显示字节进度；离线包导入仅作为自动获取失败后的后备入口。
 - 订阅自动读取来源名称，普通操作结果用应用内绿色/红色提示；折叠导航居中，默认分组遵循配置顺序和运行模式。
 
-首次部署支持Linux amd64/arm64及systemd用户会话，已有系统内核可复用；新下载固定mihomo v1.19.31并验SHA-256，不覆盖配置/unit。多订阅合并、规则编辑、TUN、自动调度和多机平台不在范围。
+- 概览可开关当前用户的新终端代理与远端TUN，缺权限时引导准备；提供ChatGPT/GitHub/Google/Grok单项及全部网站测试。
+- SSH入口位于概览下方，尚未连接时可直接点击概览中的“点击连接”。
+
+首次部署支持Linux amd64/arm64及systemd用户会话，已有系统内核可复用；新下载固定mihomo v1.19.31并验SHA-256，不覆盖配置/unit。多订阅合并、规则编辑、自动调度和多机平台不在范围。TUN按用户新增要求纳入0.4.0。
 
 ## 运行与构建
 
@@ -36,8 +39,8 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约141MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。旧EXE保留，关闭旧版后运行新EXE，连接设置沿用。
 
-59项Python隔离、45项C#本地/协议及24项WPF交互检查通过；用户订阅实际自动识别名称，服务器只读核查摘要/PID未变。两种架构内核及上传验证见0.3.1，真实订阅导入见0.2记录。
+83项Python隔离、53项C#本地/协议及32项WPF交互检查通过；当前服务器系统代理/TUN均关闭，设备存在但服务缺网络能力，已提供权限准备入口。只读核查摘要/PID未变；真实Linux TUN权限安装及路由切换尚未验收。两种架构内核及上传验证见0.3.1，真实订阅导入见0.2记录。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 
-当前基线 **DESKTOP-SSH-0.9**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。
+当前基线 **DESKTOP-SSH-1.0**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络控制见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-010](docs/adr/ADR-010-REMOTE-NETWORK-CONTROLS.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。

@@ -66,6 +66,8 @@ public partial class App : Application
                 }
                 if (window is MainWindow main && e.Args.Contains("--collapsed"))
                     ((System.Windows.Controls.Button)main.FindName("SidebarToggleButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                if (window is MainWindow network) network.PreviewNetwork(e.Args.Contains("--disconnected"));
+                if (window is MainWindow scrolled && e.Args.Contains("--network")) ((System.Windows.Controls.ScrollViewer)scrolled.FindName("OverviewScroll")).ScrollToVerticalOffset(290);
                 if (e.Args.Contains("--notice-success")) Controls.InAppFeedback.Show(window, "安装并启动成功；尚未启用 linger，请在向导中配置脱离登录运行。", Controls.NoticeKind.Success);
                 if (e.Args.Contains("--confirm-demo")) _ = Controls.InAppFeedback.ConfirmAsync(window, "首次连接，请核对可信主机指纹。\nSHA256:示例指纹", "确认 SSH 主机身份");
                 void Capture()

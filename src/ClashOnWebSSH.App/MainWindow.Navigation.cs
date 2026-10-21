@@ -50,7 +50,8 @@ public partial class MainWindow
         }
         if (IsLoaded && MainTabs.Template.FindName("PageContent", MainTabs) is ContentPresenter host)
         {
-            var direction = page >= _previousPage ? 1 : -1;
+            var order = new[] { 4, 5, 0, 1, 2, 3 };
+            var direction = Array.IndexOf(order, page) >= Array.IndexOf(order, _previousPage) ? 1 : -1;
             var transform = host.RenderTransform as TranslateTransform;
             if (transform is null || transform.IsFrozen) host.RenderTransform = transform = new TranslateTransform();
             transform.BeginAnimation(TranslateTransform.XProperty,
@@ -65,5 +66,6 @@ public partial class MainWindow
         NavigationPane.BeginAnimation(WidthProperty, new DoubleAnimation(_sidebarExpanded ? 220 : 48, Motion.Sidebar) { EasingFunction = Motion.EaseOut() });
         Notify();
     }
-    private void ToggleThemeClicked(object sender, RoutedEventArgs e) => Appearance.SetDark(!Appearance.IsDark);
+    private void ToggleThemeClicked(object sender, RoutedEventArgs e)
+    { Appearance.SetDark(!Appearance.IsDark); foreach (var site in Sites) site.Refresh(); Notify(); }
 }

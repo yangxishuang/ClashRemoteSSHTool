@@ -6,6 +6,9 @@
   <ItemGroup>
     <PackageReference Include="SSH.NET" Version="2026.0.0" />
     <EmbeddedResource Include="Remote/remote.py" LogicalName="remote.py" />
+    <EmbeddedResource Include="Remote/network.py" LogicalName="network.py" />
+    <EmbeddedResource Include="Remote/tun_rollback.py" LogicalName="tun_rollback.py" />
+    <EmbeddedResource Include="Remote/tun_bootstrap.py" LogicalName="tun_bootstrap.py" />
     <EmbeddedResource Include="Remote/profiles.py" LogicalName="profiles.py" />
     <EmbeddedResource Include="Remote/bootstrap.sh" LogicalName="bootstrap.sh" />
     <EmbeddedResource Include="Remote/core_transfer.py" LogicalName="core_transfer.py" />

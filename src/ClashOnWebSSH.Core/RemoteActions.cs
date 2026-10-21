@@ -22,6 +22,16 @@ public sealed partial class RemoteActions : IDisposable
     private static string CoreScript => "CORE_MANIFEST = __import__('json').loads(" + JsonSerializer.Serialize(Resource("kernel-manifest.json")) + ")\n" + Resource("core_transfer.py");
     public static string Script { get; } = CoreScript + "\n" + Resource("profiles.py") + "\n" + Resource("remote.py");
     public static string ScriptCommand { get; } = BuildScriptCommand(Script);
+    private static string NetworkScript { get; } = "__name__='clashssh_network'\n" + Script +
+        "\nNETWORK_ROLLBACK_SCRIPT = " + JsonSerializer.Serialize(Resource("tun_rollback.py")) + "\n" + Resource("network.py") + "\nmain()\n";
+    // Code travels on stdin so the Windows command-line length stays bounded.
+    internal const string NetworkCommand = "python3 -u -c \"import sys,base64,zlib;exec(zlib.decompress(base64.b64decode(sys.stdin.readline())))\" # CLASHSSH_NETWORK";
+    private static string EncodeScript(string script)
+    {
+        using var buffer = new MemoryStream();
+        using (var compressor = new ZLibStream(buffer, CompressionLevel.Optimal, leaveOpen: true)) compressor.Write(Encoding.UTF8.GetBytes(script));
+        return Convert.ToBase64String(buffer.ToArray());
+    }
     private static string BuildScriptCommand(string script)
     {
         using var buffer = new MemoryStream();
@@ -44,7 +54,8 @@ public sealed partial class RemoteActions : IDisposable
     public async Task<RemoteReply> InvokeAsync(string action, object? values = null, CancellationToken cancellation = default)
     {
         var allowed = new[] { "probe", "core.status", "groups", "select", "delay", "service", "logs", "connectivity", "mode", "update", "deploy",
-            "profiles.list", "profiles.source", "profiles.preview", "profiles.import", "profiles.apply", "profiles.update", "profiles.rename", "profiles.delete", "uninstall.plan", "uninstall" };
+            "profiles.list", "profiles.source", "profiles.preview", "profiles.import", "profiles.apply", "profiles.update", "profiles.rename", "profiles.delete", "uninstall.plan", "uninstall",
+            "network.status", "network.test", "network.system-proxy", "network.tun.prepare", "network.tun.set", "network.tun.confirm" };
         if (!allowed.Contains(action)) throw new ArgumentException("不支持的远端动作。");
         await _operations.WaitAsync(cancellation);
         try
@@ -61,8 +72,10 @@ public sealed partial class RemoteActions : IDisposable
                     payload[entry.Name] = entry.Value;
                 }
             var seconds = action is "deploy" or "update" or "profiles.import" or "profiles.preview" or "profiles.apply" or "profiles.update" ? 600
-                : action == "delay" ? 2400 : action is "service" or "uninstall" ? 120 : 25;
-            var result = await _transport.ExecuteAsync(ScriptCommand, JsonSerializer.Serialize(payload, WireJson), TimeSpan.FromSeconds(seconds), cancellation);
+                : action == "delay" ? 2400 : action is "service" or "uninstall" or "network.tun.prepare" ? 120 : action == "network.tun.set" ? 65 : action.StartsWith("network.") ? 45 : 25;
+            var network = action.StartsWith("network.");
+            var input = (network ? EncodeScript(NetworkScript) + "\n" : "") + JsonSerializer.Serialize(payload, WireJson);
+            var result = await _transport.ExecuteAsync(network ? NetworkCommand : ScriptCommand, input, TimeSpan.FromSeconds(seconds), cancellation);
             if (result.ExitCode != 0 && !result.Output.Contains("@@CLASHSSH@@"))
                 throw new InvalidOperationException(Redactor.Clean(result.Error.Length > 0 ? result.Error : result.Output));
             var reply = RemoteReply.Parse(result.Output);

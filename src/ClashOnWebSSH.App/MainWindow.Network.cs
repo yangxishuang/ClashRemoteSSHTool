@@ -1,0 +1,164 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Media;
+using ClashOnWebSSH.Core;
+
+namespace ClashOnWebSSH.App;
+
+public partial class MainWindow
+{
+    private bool _networkKnown, _networkApiAvailable, _systemProxyEnabled, _proxySupported, _tunEnabled, _tunReady, _tunPending, _tunDevice, _tunRunning;
+    private string _tunReason = "连接服务器后检查设备与权限。", _networkOperation = "";
+    private bool _testingSites;
+    public bool IsNetworkChanging => _busy && !_testingSites && _networkOperation.Length > 0;
+    public bool IsSitesTesting => _busy && _testingSites;
+    public ObservableCollection<WebsiteRow> Sites { get; } = new([new("chatgpt", "ChatGPT", "✳"), new("github", "GitHub", "GH"), new("google", "Google", "G"), new("grok", "Grok", "𝕏")]);
+    public bool SystemProxyEnabled => _networkKnown && _systemProxyEnabled;
+    public bool TunEnabled => _networkKnown && _tunEnabled;
+    public bool CanReadNetwork => CanOperate && _connected;
+    public bool CanChangeSystemProxy => CanReadNetwork && _networkKnown && _proxySupported && !_tunPending && (_installed || _systemProxyEnabled);
+    public bool CanChangeTun => CanReadNetwork && _networkKnown && !_tunPending && (_tunEnabled || _tunReady);
+    public bool CanPrepareTun => CanReadNetwork && _networkKnown && _tunDevice && _tunRunning && !_tunPending;
+    public bool CanTestSites => CanReadNetwork && _installed && _networkKnown && _networkApiAvailable && _tunRunning;
+    public Visibility ConnectPromptVisibility => _connected ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility TunPreparationVisibility => _connected && _installed && _networkKnown && !_tunReady && !_tunEnabled ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility NetworkOperationVisibility => _networkOperation.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    public string NetworkOperationText => _networkOperation;
+    public Brush ServiceSurface => (Brush)FindResource(_service == "运行中" ? "SuccessSurface" : "Block");
+    public string SystemProxyHint => !_connected ? "连接后可开启；已有终端和程序不受影响。" : !_networkKnown ? "尚未读取状态，请刷新。" : !_proxySupported ? "当前登录 shell 不支持自动加载。" : _systemProxyEnabled ? "已开启 · 新终端自动使用远端代理。" : "已关闭 · 开启后对新终端生效。";
+    public string TunHint => !_connected ? "连接服务器后检查设备与权限。" : !_networkKnown ? "状态未确认，请刷新检查。" : _tunPending ? "正在确认 SSH 连通；失败将在约 75 秒后自动回退。" : _tunEnabled ? "已开启 · 内网与 SSH 客户端地址保持直连。" : _tunReason;
+
+    internal void ApplyNetworkStatus(JsonElement data)
+    {
+        var proxy = data.GetProperty("systemProxy"); var tun = data.GetProperty("tun");
+        _systemProxyEnabled = Flag(proxy, "enabled"); _proxySupported = Flag(proxy, "supported");
+        _tunEnabled = Flag(tun, "enabled"); _tunReady = Flag(tun, "ready"); _tunPending = Flag(tun, "pending");
+        _tunDevice = Flag(tun, "device"); _tunRunning = Flag(tun, "running");
+        _networkApiAvailable = Text(tun, "apiError").Length == 0;
+        _tunReason = !_tunDevice ? "缺少 /dev/net/tun，需服务器管理员开放设备。"
+            : !_tunRunning ? "请先启动代理服务。" : !Flag(tun, "capable") ? "需要管理员准备网络权限。"
+            : !Flag(tun, "linger") ? "需要启用脱离登录运行，以便失联时自动回退。"
+            : !Flag(tun, "timer") ? "服务器缺少 systemd-run，无法安排自动回退。"
+            : "已关闭 · 设备和权限就绪。";
+        if (Text(tun, "apiError").Length > 0) { _tunReady = false; _tunReason = "管理接口暂不可达，请先检查服务。"; }
+        _networkKnown = true; Notify();
+    }
+    private async Task RefreshNetwork()
+    {
+        if (_remote is null) { _networkKnown = false; Notify(); return; }
+        try { ApplyNetworkStatus((await _remote.InvokeAsync("network.status")).Data); }
+        catch { _networkKnown = false; Notify(); throw; }
+    }
+    private async Task RecheckNetwork()
+    {
+        try { await RefreshNetwork(); }
+        catch (Exception error) { AddLog("网络状态未确认：" + Redactor.Clean(error.Message)); }
+    }
+    private async void RefreshNetworkClicked(object sender, RoutedEventArgs e) => await Run("刷新网络状态", RefreshNetwork);
+    private async void SystemProxyClicked(object sender, RoutedEventArgs e)
+    {
+        var enabled = ((ToggleButton)sender).IsChecked == true;
+        Notify();
+        var message = "系统代理设置已确认";
+        _networkOperation = "正在设置当前用户的新终端代理…";
+        try
+        {
+            await Run("设置新终端代理", async () =>
+            {
+                try { message = Text((await _remote!.InvokeAsync("network.system-proxy", new { enabled })).Data, "message", message); }
+                finally { await RecheckNetwork(); }
+                if (!_networkKnown) throw new InvalidOperationException("命令已返回，但最新状态未能确认；请刷新后再操作。");
+            }, () => message);
+        }
+        finally { _networkOperation = ""; Notify(); }
+    }
+    private async void TunClicked(object sender, RoutedEventArgs e)
+    {
+        var enabled = ((ToggleButton)sender).IsChecked == true;
+        Notify();
+        if (_demo) { await Run("切换 TUN", () => Task.CompletedTask); return; }
+        if (!await ConfirmAsync(enabled
+            ? "将重启远端代理并启用 TUN，接管服务器流量。内网及当前 SSH 客户端地址保持直连。若客户端无法重新确认 SSH 连通，约 75 秒后自动恢复原配置。\n\n确认开启？"
+            : "将关闭远端 TUN 并重启代理。当前用户的新终端代理开关独立保留。\n\n确认关闭？", "切换 TUN 虚拟网卡")) { Notify(); return; }
+        _networkOperation = enabled ? "正在开启 TUN 并重新确认 SSH 连通…" : "正在关闭 TUN 并核验状态…";
+        var message = "TUN 状态已确认";
+        try
+        {
+            await Run("切换 TUN", async () =>
+            {
+                try { message = Text((await _remote!.SetTunAsync(enabled)).Data, "message", message); }
+                finally { await RecheckNetwork(); }
+            }, () => message);
+        }
+        finally { _networkOperation = ""; Notify(); }
+    }
+    private async void PrepareTunClicked(object sender, RoutedEventArgs e)
+    {
+        if (!CanPrepareTun) return;
+        if (_demo) { await Run("准备 TUN 权限", () => Task.CompletedTask); return; }
+        new TunPreparationWindow(_remote!) { Owner = this }.ShowDialog();
+        await Run("刷新远端状态", RefreshState);
+    }
+    private async void TestSitesClicked(object sender, RoutedEventArgs e)
+    {
+        var site = (sender as Button)?.Tag?.ToString() ?? "all";
+        var selected = Sites.Where(row => site == "all" || row.Id == site).ToList();
+        if (!CanTestSites || selected.Count == 0) return;
+        foreach (var row in selected) row.Start();
+        _testingSites = true;
+        _networkOperation = "正在从服务器测试网站 HTTPS 响应…";
+        try
+        {
+            await Run("网站测试", async () =>
+            {
+                var data = (await _remote!.InvokeAsync("network.test", new { site })).Data;
+                foreach (var result in data.GetProperty("results").EnumerateArray())
+                    Sites.Single(row => row.Id == Text(result, "id")).Apply(result);
+            });
+        }
+        finally { foreach (var row in selected) row.Finish(); _networkOperation = ""; _testingSites = false; Notify(); }
+    }
+    internal void PreviewNetwork(bool disconnected = false)
+    {
+        if (!_demo) throw new InvalidOperationException("仅用于界面预览。");
+        _connected = !disconnected;
+        if (disconnected) { _service = "尚未连接"; _installed = false; _version = "—"; _mode = "—"; _port = "等待连接"; Groups.Clear(); Nodes.Clear(); _group = null; }
+        else
+        {
+            ApplyNetworkStatus(JsonSerializer.SerializeToElement(new { systemProxy = new { enabled = true, supported = true }, tun = new { enabled = false, capable = false, device = true, linger = true, timer = true, running = true, ready = false } }));
+            var delays = new[] { 468, 257, 192, 523 };
+            for (var i = 0; i < Sites.Count; i++) Sites[i].Apply(JsonSerializer.SerializeToElement(new { delay = delays[i], httpStatus = 200, message = "连接正常 · 演示数据" }));
+        }
+        Notify();
+    }
+}
+
+public sealed class WebsiteRow(string id, string name, string mark) : INotifyPropertyChanged
+{
+    public string Id { get; } = id;
+    public string Name { get; } = name;
+    public string Mark { get; } = mark;
+    private string _result = "测试", _detail = "尚未测试";
+    private bool _pending, _measured, _failed;
+    public string ResultText => _pending ? "测试中…" : _result;
+    public string Detail => _detail;
+    public Brush ResultBrush => (Brush)Application.Current.FindResource(_pending || !_measured ? "Accent" : _failed ? "Error" : "Success");
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public void Refresh() => PropertyChanged?.Invoke(this, new(null));
+    public void Start() { _pending = true; _measured = false; _result = "重试"; _detail = "正在连接…"; Refresh(); }
+    public void Apply(JsonElement result)
+    {
+        _measured = true; _pending = false;
+        _failed = !result.TryGetProperty("delay", out var delay) || delay.ValueKind != JsonValueKind.Number;
+        _result = _failed ? "重试" : delay.GetInt32() + " ms";
+        _detail = result.GetProperty("message").GetString() ?? "";
+        if (result.TryGetProperty("httpStatus", out var code) && code.ValueKind == JsonValueKind.Number && code.GetInt32() >= 400)
+            _detail += " · HTTP " + code.GetInt32();
+        Refresh();
+    }
+    public void Finish() { if (_pending) { _detail = "结果未获取，请重试"; _failed = true; _measured = true; } _pending = false; Refresh(); }
+}

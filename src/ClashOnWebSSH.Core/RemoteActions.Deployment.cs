@@ -26,22 +26,7 @@ public sealed partial class RemoteActions
                 packages ??= new KernelPackageStore();
                 var path = offlinePackage == null ? await packages.AcquireAsync(release, progress, cancellation).ConfigureAwait(false)
                     : await packages.ImportAsync(offlinePackage, release, progress, cancellation).ConfigureAwait(false);
-                await using var input = File.OpenRead(path);
-                var size = input.Length;
-                var header = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { version = release.Version, asset = release.Asset, size, sha256 = release.Sha256 }) + "\n");
-                progress?.Report(new("SSH 上传内核", 0, size));
-                await _operations.WaitAsync(cancellation).ConfigureAwait(false);
-                try
-                {
-                    var result = await _transport.UploadAsync(CoreUploadCommand, header, input, size,
-                        new InlineProgress<long>(sent => progress?.Report(new("SSH 上传内核", sent, size))), TimeSpan.FromMinutes(5), cancellation).ConfigureAwait(false);
-                    if (result.ExitCode != 0 && !result.Output.Contains("@@CLASHSSH@@"))
-                        throw new InvalidOperationException(Redactor.Clean(result.Error.Length > 0 ? result.Error : "内核 SSH 上传失败。"));
-                    var reply = RemoteReply.Parse(result.Output); reply.EnsureSuccess();
-                    if (reply.Data.GetProperty("size").GetInt64() != size || reply.Data.GetProperty("sha256").GetString() != release.Sha256)
-                        throw new InvalidOperationException("远端未确认内核完整性。");
-                }
-                finally { _operations.Release(); }
+                await UploadCoreAsync(path, release, progress, cancellation).ConfigureAwait(false);
             }
             progress?.Report(new("远端校验配置并启动服务"));
             return await InvokeAsync("deploy", new { profileId, uploadedCore = true }, cancellation).ConfigureAwait(false);

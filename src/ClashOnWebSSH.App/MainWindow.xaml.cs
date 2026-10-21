@@ -19,7 +19,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private ProxyGroup? _group;
     private string _service = "尚未连接", _version = "—", _mode = "—", _port = "等待连接";
     private int _mixedPort = 7890;
-    private string _status = "在左侧填写 SSH 信息，连接你的服务器。", _sample = "";
+    private string _status = "点击概览中的连接按钮，或打开 SSH 连接页。", _sample = "";
     private string _deployment = "连接后自动检查远端环境。已有代理直接管理，未安装时可在这里部署。";
     private string _logs = "连接服务器后，点击「读取最近 50 行」查看服务日志。";
     private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
@@ -134,7 +134,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _remote?.Dispose(); _remote = null; _connected = false;
             _maintenancePrivilegesChecked = false; SudoPassword.Clear();
             _service = "已断开"; _version = "—"; _mode = "—"; _port = "连接已关闭";
-            Groups.Clear(); Nodes.Clear(); Configurations.Clear(); _group = null;
+            Groups.Clear(); Nodes.Clear(); Configurations.Clear(); _group = null; _networkKnown = false;
             ConnectButton.Content = "连接服务器"; SetStatus("已断开 SSH；远端代理继续运行。"); Notify(); return;
         }
         await Run("连接服务器", async () =>
@@ -208,6 +208,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         try { await RefreshProfiles(); }
         catch (Exception error) { AddLog("配置列表读取失败：" + Redactor.Clean(error.Message)); }
+        await RecheckNetwork();
         Notify();
     }
 

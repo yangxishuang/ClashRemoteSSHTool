@@ -60,7 +60,16 @@ def save_catalog(request, catalog):
 
 def current_profile_id(request, catalog):
     digest = file_hash(config_path(request))
-    return catalog.get("activeId", "") if digest and digest == catalog.get("activeHash") else ""
+    if digest and digest == catalog.get("activeHash"):
+        return catalog.get("activeId", "")
+    # A managed TUN edit changes only runtime networking fields, not profile identity.
+    # Keep the catalog untouched so independent rollback needs no second-file transaction.
+    state = read_network_state(request)
+    phase = state.get("phase")
+    hashes = [state.get("afterHash")] if phase in ("pending", "active", "off") else [state.get("beforeHash")] if phase in ("rolled-back", "cancelled", "rollback-failed") else []
+    if digest and digest in hashes and state.get("profileId") and state.get("profileId") == catalog.get("activeId") and state.get("catalogHash") == catalog.get("activeHash"):
+        return state["profileId"]
+    return ""
 
 
 def safe_profile(entry, active=False):
@@ -173,7 +182,7 @@ def profiles_preview(request):
 def validate_profile_content(request, raw):
     import yaml
     candidate = protect_config(load_yaml(raw), current_config(config_path(request)), request)
-    binary = core_binary()
+    binary = core_binary(request)
     if binary:
         with tempfile.TemporaryDirectory(prefix="clashonweb-profile-check-") as directory:
             for name in ("Country.mmdb", "GeoSite.dat", "GeoIP.dat", "geosite.dat", "geoip.dat", "ASN.mmdb"):
@@ -256,6 +265,9 @@ def uninstall_plan(request):
         raise RuntimeError("当前unit不在本用户标准服务目录，不能自动卸载；请使用对应系统包管理器")
     config = config_path(request)
     paths = [(unit, "用户服务unit"), (config, "当前运行配置")]
+    override = unit.parent / (unit.name + ".d") / "70-clashonweb-tun.conf"
+    if override.is_file() and override.read_text().startswith("# ClashOnWebSSH TUN permissions"):
+        paths.append((override, "本应用的 TUN 权限覆盖文件"))
     owned_binary = HOME / ".local/share/clashonweb/bin/mihomo"
     if unit.is_file():
         text = unit.read_text(encoding="utf-8")
@@ -292,7 +304,7 @@ def uninstall_plan(request):
             files.append({"path": str(path), "label": label, "size": path.stat().st_size, "sha256": file_hash(path)})
     if not files and info.get("LoadState") != "loaded":
         raise ValueError("没有可卸载的当前用户服务")
-    binary = core_binary()
+    binary = core_binary(request)
     plan = {"service": service_name(request), "files": files, "wasActive": info.get("ActiveState") == "active",
             "wasEnabled": info.get("UnitFileState", ""), "loaded": info.get("LoadState") == "loaded",
             "retainedBinary": binary if binary and binary not in [item["path"] for item in files] else "",
