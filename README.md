@@ -2,13 +2,15 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.5.0，2026-10-21。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261021-0.5.0.md)
+**版本0.5.1，2026-10-21。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261021-0.5.1.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
 概览的网络设置与网站测试左右各半宽，系统代理/TUN选项卡横滑切换；网络卡片不再显示底部小字，网站测试单行四项紧凑展示。
 
 配置页点击整张卡片切换，当前配置整卡高亮；更新统一放在右上角“⋯”菜单，重复点击当前配置不会重启。
+
+代理节点改为FlClash式卡片网格，随内容区宽度自动增减列数；整卡选择、右下角独立测速，长名称最多两行。大分组只创建可见区域及相邻行卡片，搜索后连续重排。
 
 ## 功能
 
@@ -43,7 +45,7 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
 
-117项Python、61项C#本地/回环SSH及48项WPF检查通过，共226项。真实mihomo在全新目录、Geo下载地址不可用时，使用内置数据通过DNS fallback/geosite、GEOIP两种模式及ASN校验；缺少GeoSite的反例正确失败。本轮未连接真实服务器，不等同于干净Linux完整部署验收。
+117项Python、61项C#本地/回环SSH及55项WPF检查通过，共233项。新增窗口/侧栏自适应、1000节点虚拟化与搜索、主题/延迟颜色、整卡选择回读及独立测速检查。本轮未连接真实服务器；此前内置部署资源及真实内核离线校验证据见[0.5.0记录](docs/testing/VERIFICATION-20261021-0.5.0.md)，不等同于干净Linux完整部署验收。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 

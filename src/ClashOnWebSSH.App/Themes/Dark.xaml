@@ -11,6 +11,7 @@
     <SolidColorBrush x:Key="Outline" Color="#46464D"/>
     <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Success" Color="#8DD894"/>
+    <SolidColorBrush x:Key="Warning" Color="#E6AF56"/>
     <SolidColorBrush x:Key="SuccessSurface" Color="#173E21"/>
     <SolidColorBrush x:Key="Error" Color="#FF9FAA"/>
     <SolidColorBrush x:Key="ErrorSurface" Color="#4F222A"/>

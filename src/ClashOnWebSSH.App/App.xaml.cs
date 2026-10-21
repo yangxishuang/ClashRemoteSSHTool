@@ -43,6 +43,15 @@ public partial class App : Application
         MainWindow = window;
         if (renderIndex >= 0 && renderIndex + 1 < e.Args.Length)
         {
+            foreach (var option in new[] { "--width", "--height" })
+            {
+                var index = Array.IndexOf(e.Args, option);
+                if (index >= 0 && index + 1 < e.Args.Length && int.TryParse(e.Args[index + 1], out var size))
+                {
+                    if (option == "--width") window.Width = Math.Clamp(size, (int)window.MinWidth, 3000);
+                    else window.Height = Math.Clamp(size, (int)window.MinHeight, 2000);
+                }
+            }
             window.ShowInTaskbar = false; window.ShowActivated = false;
             window.Left = -20000; window.Top = -20000;
             window.WindowStartupLocation = WindowStartupLocation.Manual;

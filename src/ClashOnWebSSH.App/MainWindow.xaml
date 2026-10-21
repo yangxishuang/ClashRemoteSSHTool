@@ -36,16 +36,24 @@
                             </Grid>
                             <ui:SmoothBorder Grid.Row="1" Background="{DynamicResource Block}" CornerRadius="7" Padding="11,9" Margin="0,0,0,12"><TextBlock Text="{Binding CurrentNodeText}" Foreground="{DynamicResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis"/></ui:SmoothBorder>
                             <Grid Grid.Row="2">
-                                <DataGrid x:Name="NodeGrid" ItemsSource="{Binding NodesView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False" GridLinesVisibility="None" HeadersVisibility="Column" BorderThickness="0" SelectionMode="Single" RowHeaderWidth="0" Background="{DynamicResource CardSurface}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="节点名称" Binding="{Binding Name}" Width="*"/>
-                                        <DataGridTextColumn Header="类型" Binding="{Binding Type}" Width="140"/>
-                                        <DataGridTextColumn Header="延迟" Binding="{Binding DelayText}" Width="92"/>
-                                        <DataGridTextColumn Header="状态" Binding="{Binding StatusText}" Width="80"/>
-                                        <DataGridTemplateColumn Header="操作" Width="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Button Content="测速" Tag="{Binding}" Click="NodeDelayClicked" Padding="8,5" MinHeight="28" FontSize="11" Margin="0,0,6,0" IsEnabled="{Binding DataContext.CanOperate, RelativeSource={RelativeSource AncestorType=Window}}"/><Button Content="使用" Tag="{Binding}" Click="UseNodeClicked" Padding="8,5" MinHeight="28" FontSize="11" Foreground="{DynamicResource Accent}" Background="{DynamicResource Block}" BorderThickness="0" IsEnabled="{Binding DataContext.CanSelectNode, RelativeSource={RelativeSource AncestorType=Window}}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding EmptyVisibility}"><TextBlock Text="↗" FontSize="42" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center"/><TextBlock Text="先连接一台服务器" Foreground="{DynamicResource Muted}" FontSize="15" Margin="0,14,0,6" HorizontalAlignment="Center"/><TextBlock Text="已有代理即可管理，尚未安装可前往部署。" Foreground="{DynamicResource Muted}" FontSize="11"/></StackPanel>
+                                <ItemsControl x:Name="NodeCards" ItemsSource="{Binding NodesView}" Background="{DynamicResource Page}" Foreground="{DynamicResource Ink}" VirtualizingPanel.IsVirtualizing="True">
+                                    <ItemsControl.Template><ControlTemplate TargetType="ItemsControl"><ScrollViewer x:Name="NodeScroll" CanContentScroll="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0"><ItemsPresenter/></ScrollViewer></ControlTemplate></ItemsControl.Template>
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><ui:VirtualizingCardPanel ClipToBounds="True"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate><DataTemplate>
+                                        <Grid IsEnabled="{Binding DataContext.CanOperate, RelativeSource={RelativeSource AncestorType=Window}}">
+                                            <Button Style="{StaticResource NodeCard}" Tag="{Binding}" Click="UseNodeClicked" ToolTip="{Binding DataContext.NodeSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" AutomationProperties.Name="{Binding Name}" AutomationProperties.ItemStatus="{Binding StatusText}">
+                                                <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="26"/></Grid.RowDefinitions>
+                                                    <TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" FontSize="15" LineHeight="21" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="42" VerticalAlignment="Top" Margin="0,0,24,0"/>
+                                                    <TextBlock Text="✓" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="{Binding IsCurrent, Converter={StaticResource BoolVisibility}}"/>
+                                                    <TextBlock Grid.Row="1" Text="{Binding Type}" Foreground="{DynamicResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,4,0,4"/>
+                                                    <TextBlock Grid.Row="2" Text="{Binding DelayText}" Style="{StaticResource NodeLatency}" VerticalAlignment="Center" Margin="0,0,38,0"/>
+                                                </Grid>
+                                            </Button>
+                                            <Button Content="&#xE9D9;" FontFamily="Segoe MDL2 Assets" Tag="{Binding}" Click="NodeDelayClicked" Width="30" Height="26" MinHeight="26" Padding="0" FontSize="13" Margin="0,0,10,11" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Foreground="{DynamicResource Accent}" ToolTip="仅测试此节点的延迟" AutomationProperties.Name="{Binding Name, StringFormat=测速 {0}}"/>
+                                        </Grid>
+                                    </DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding EmptyNodesVisibility}" IsHitTestVisible="False"><TextBlock Text="↗" FontSize="42" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center"/><TextBlock Text="{Binding EmptyNodesTitle}" Foreground="{DynamicResource Muted}" FontSize="15" Margin="0,14,0,6" HorizontalAlignment="Center"/><TextBlock Text="{Binding EmptyNodesHint}" Foreground="{DynamicResource Muted}" FontSize="11"/></StackPanel>
                             </Grid>
                         </Grid>
                     </TabItem>

@@ -31,6 +31,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public bool CanOperate => !_busy && (_remote != null || _demo);
     public bool CanDeploy => CanOperate && !_installed;
     public bool CanSelectNode => CanOperate && _group?.Type == "Selector";
+    public string NodeSelectionHint => _group?.Type == "Selector" ? "点击卡片使用此节点；右下角可单独测速" : "此分组由内核自动选择，可单独测速";
+    public Visibility EmptyNodesVisibility => NodesView.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+    public string EmptyNodesTitle => Nodes.Count > 0 ? "没有匹配的节点" : _connected ? "此分组暂无节点" : "先连接一台服务器";
+    public string EmptyNodesHint => Nodes.Count > 0 ? "尝试其他名称或地区关键词。" : _connected ? "请选择其他分组或刷新远端状态。" : "已有代理即可管理，尚未安装可前往部署。";
     public bool CanEditConnection => !_busy && !_connected;
     public string ConnectionText => _demo ? "界面预览 · 演示数据" : _connected ? "SSH 已连接" : "尚未连接";
     public Brush ConnectionBrush => ColorBrush(_connected ? "#51D6BA" : "#7888A4");
@@ -58,6 +62,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (demo) { _maintenancePrivileges = RemotePrivilegeMode.PasswordRequired; _maintenancePrivilegesChecked = true; }
         NodesView = CollectionViewSource.GetDefaultView(Nodes);
         NodesView.Filter = item => item is NodeRow row && (string.IsNullOrWhiteSpace(SearchBox?.Text) || row.Name.Contains(SearchBox.Text, StringComparison.OrdinalIgnoreCase));
+        NodesView.CollectionChanged += (_, _) => Notify();
         InitializeComponent();
         InAppFeedback.Attach(this);
         DataContext = this;
@@ -227,7 +232,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void UseNodeClicked(object sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is not NodeRow row || _group == null) return;
+        if (!CanSelectNode || (sender as Button)?.Tag is not NodeRow row || row.IsCurrent || _group == null) return;
         var group = _group.Name;
         await Run("切换节点", async () => { await _remote!.InvokeAsync("select", new { group, node = row.Name }); await RefreshState(); });
     }
@@ -306,11 +311,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             new() { Name = "新加坡 · 专线 01", Type = "VLESS" }, new() { Name = "台湾 · 家宽 02", Type = "Trojan" },
             new() { Name = "美国 · 洛杉矶 01", Type = "Shadowsocks" }, new() { Name = "德国 · 法兰克福 01", Type = "VLESS" }
         } };
+        for (var index = 1; index <= 16; index++)
+            demo.Members.Add(new() { Name = $"{(index % 2 == 0 ? "日本 · 东京" : "新加坡 · 家庭宽带与流媒体专线")} {index:00}", Type = index % 3 == 0 ? "Hysteria2" : "VLESS" });
         Groups.Add(demo); Groups.Add(new() { Name = "自动选择", Type = "URLTest", Current = demo.Current, Members = demo.Members });
         Groups.Add(new() { Name = "AI 服务", Type = "Selector", Current = demo.Current, Members = demo.Members });
         GroupBox.SelectedIndex = 0;
         var latency = new int?[] { 38, 42, 56, 93, 86, 65, 178, null };
-        for (var i = 0; i < Nodes.Count; i++) Nodes[i].SetDelay(latency[i]);
+        for (var i = 0; i < Nodes.Count; i++) Nodes[i].SetDelay(latency[i % latency.Length]);
+        Nodes[3].SetDelay(822); Nodes[6].SetDelay(1660);
         ConnectButton.Content = "演示模式";
         SetStatus("界面预览：以上为演示数据，未连接或修改服务器。");
     }
@@ -336,6 +344,13 @@ public sealed class NodeRow : INotifyPropertyChanged
     public string StatusText => IsCurrent ? "使用中" : "";
     public string DelayText { get; private set; } = "待测速";
     public NodeRow(string name, string type, bool current) { Name = name; Type = type; IsCurrent = current; }
-    public void SetDelay(int? value) { DelayText = value.HasValue ? value + " ms" : "超时"; PropertyChanged?.Invoke(this, new(nameof(DelayText))); }
+    public string DelayKind { get; private set; } = "Unknown";
+    public void SetDelay(int? value)
+    {
+        DelayText = value.HasValue ? value + " ms" : "超时";
+        DelayKind = !value.HasValue ? "Timeout" : value < 600 ? "Good" : value < 1500 ? "Slow" : "Timeout";
+        PropertyChanged?.Invoke(this, new(nameof(DelayText)));
+        PropertyChanged?.Invoke(this, new(nameof(DelayKind)));
+    }
     public event PropertyChangedEventHandler? PropertyChanged;
 }

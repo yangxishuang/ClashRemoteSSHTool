@@ -52,6 +52,36 @@
             </ControlTemplate>
         </Setter.Value></Setter>
     </Style>
+    <Style x:Key="NodeCard" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Padding" Value="14,12"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="{DynamicResource CardSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource Outline}"/><Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+            <Grid>
+                <ui:SmoothBorder x:Name="Body" CornerRadius="20" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"/>
+                <ui:SmoothBorder x:Name="State" CornerRadius="20" Background="{DynamicResource StateLayer}" Opacity="0" IsHitTestVisible="False"/>
+                <ContentPresenter Margin="{TemplateBinding Padding}"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <EventTrigger RoutedEvent="MouseEnter"><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="State" Storyboard.TargetProperty="Opacity" To="0.06" Duration="{x:Static ui:Motion.Fast}"/></Storyboard></BeginStoryboard></EventTrigger>
+                <EventTrigger RoutedEvent="MouseLeave"><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="State" Storyboard.TargetProperty="Opacity" To="0" Duration="{x:Static ui:Motion.Fast}"/></Storyboard></BeginStoryboard></EventTrigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="State" Property="Background" Value="{DynamicResource Accent}"/><Setter TargetName="State" Property="Opacity" Value="0.12"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.42"/></Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Body" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="Body" Property="BorderThickness" Value="2"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsCurrent}" Value="True"><Setter Property="Background" Value="{DynamicResource NavigationSelected}"/><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter Property="BorderThickness" Value="1.5"/></DataTrigger>
+            <DataTrigger Binding="{Binding DataContext.CanSelectNode, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"><Setter Property="Cursor" Value="Arrow"/></DataTrigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="NodeLatency" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource Muted}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding DelayKind}" Value="Good"><Setter Property="Foreground" Value="{DynamicResource Success}"/></DataTrigger>
+            <DataTrigger Binding="{Binding DelayKind}" Value="Slow"><Setter Property="Foreground" Value="{DynamicResource Warning}"/></DataTrigger>
+            <DataTrigger Binding="{Binding DelayKind}" Value="Timeout"><Setter Property="Foreground" Value="{DynamicResource Error}"/></DataTrigger>
+        </Style.Triggers>
+    </Style>
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="{DynamicResource Accent}"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
     </Style>
