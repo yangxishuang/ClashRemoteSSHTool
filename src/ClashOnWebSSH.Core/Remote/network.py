@@ -1,6 +1,7 @@
 """On-demand remote network controls. Uses the adapter's bounded config/API helpers."""
 import ipaddress
 import stat
+import ssl
 
 PROXY_MARKER = "# ClashOnWebSSH proxy environment"
 TUN_MARKER = "# ClashOnWebSSH TUN permissions"
@@ -287,6 +288,10 @@ def network_status(request):
             "architecture": platform.machine(), "trustedSystemCore": bool(trusted_system_core())}
 
 
+class SiteRedirectError(ValueError):
+    pass
+
+
 class SiteRedirect(urllib.request.HTTPRedirectHandler):
     def __init__(self, hostname):
         self.hostname = hostname
@@ -296,11 +301,32 @@ class SiteRedirect(urllib.request.HTTPRedirectHandler):
         target = urllib.parse.urlsplit(newurl)
         self.count += 1
         if self.count > 4 or target.scheme != "https" or target.username or not (target.hostname == self.hostname or (target.hostname or "").endswith("." + self.hostname)):
-            raise ValueError("网站重定向超出测试范围")
+            raise SiteRedirectError("网站重定向超出测试范围")
         redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
         if redirected:
             redirected.set_proxy(req.host, "http")
+            redirected.add_unredirected_header("Host", target.netloc)
         return redirected
+
+
+def site_failure(error):
+    # Classify locally; raw exception text can contain URLs and credentials.
+    reason = error.reason if isinstance(error, urllib.error.URLError) else error
+    if isinstance(reason, (TimeoutError, socket.timeout)):
+        return "timeout", "连接超时（8 秒），请检查服务器出口或当前节点"
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        return "certificate", "TLS 证书校验失败，请检查服务器时间及 CA 证书"
+    if isinstance(reason, ssl.SSLError):
+        return "tls", "TLS 握手失败，请检查服务器出口或当前节点"
+    if isinstance(reason, socket.gaierror):
+        return "dns", "DNS 解析失败，请检查服务器及内核 DNS"
+    if isinstance(reason, ConnectionRefusedError):
+        return "refused", "连接被拒绝，请检查远端代理服务及出口"
+    if isinstance(reason, ConnectionResetError):
+        return "reset", "连接被重置，请检查服务器出口或当前节点"
+    if isinstance(reason, SiteRedirectError):
+        return "redirect", "网站重定向超出测试范围"
+    return "connection", "代理或网站连接失败，请检查服务器出口或当前节点"
 
 
 def test_sites(request):
@@ -318,13 +344,18 @@ def test_sites(request):
             probe = urllib.request.Request(url, headers={"User-Agent": "ClashOnWebSSH/0.4.0", "Range": "bytes=0-0"})
             # Explicit CONNECT avoids environment NO_PROXY silently bypassing mihomo.
             probe.set_proxy("127.0.0.1:" + str(port), "http")
+            # set_proxy runs before urllib's header preparation here. Without an
+            # explicit origin Host, urllib sends the loopback proxy address to
+            # the website inside TLS (GitHub then redirects back to itself).
+            probe.add_unredirected_header("Host", urllib.parse.urlsplit(url).netloc)
             with opener.open(probe, timeout=8) as response:
                 status = response.status
         except urllib.error.HTTPError as error:
             status = error.code
             error.close()
-        except Exception:
-            return {"id": key, "name": name, "delay": None, "httpStatus": None, "message": "超时或连接失败"}
+        except Exception as error:
+            kind, message = site_failure(error)
+            return {"id": key, "name": name, "delay": None, "httpStatus": None, "errorKind": kind, "message": message}
         return {"id": key, "name": name, "delay": round((time.monotonic() - started) * 1000), "httpStatus": status,
                 "message": "连接正常" if 200 <= status < 400 else "已响应，访问受限" if status in (401, 403, 429) else "网站返回错误"}
     keys = list(SITE_TARGETS) if selected == "all" else [selected]

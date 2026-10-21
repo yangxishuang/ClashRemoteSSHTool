@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using ClashOnWebSSH.App.Controls;
 using ClashOnWebSSH.Core;
 
 namespace ClashOnWebSSH.App;
@@ -16,6 +18,21 @@ public partial class MainWindow
     private bool _takeoverKnown, _bothOff, _directConfirmed;
     private string _takeoverMode = "";
     private bool _testingSites;
+    private int _previousNetworkTab;
+    private void NetworkTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not TabControl tabs || !ReferenceEquals(e.Source, tabs) || tabs.SelectedIndex < 0) return;
+        if (tabs.IsLoaded && tabs.Template.FindName("SwitchContent", tabs) is ContentPresenter host)
+        {
+            var direction = tabs.SelectedIndex >= _previousNetworkTab ? 1 : -1;
+            var transform = host.RenderTransform as TranslateTransform;
+            if (transform is null || transform.IsFrozen) host.RenderTransform = transform = new TranslateTransform();
+            transform.BeginAnimation(TranslateTransform.XProperty,
+                new DoubleAnimation(direction * host.ActualWidth, 0, Motion.Common) { EasingFunction = Motion.EaseOut() });
+            host.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, Motion.Fast));
+        }
+        _previousNetworkTab = tabs.SelectedIndex;
+    }
     public bool IsNetworkChanging => _busy && !_testingSites && _networkOperation.Length > 0;
     public bool IsSitesTesting => _busy && _testingSites;
     public ObservableCollection<WebsiteRow> Sites { get; } = new([new("chatgpt", "ChatGPT", "✳"), new("github", "GitHub", "GH"), new("google", "Google", "G"), new("grok", "Grok", "𝕏")]);

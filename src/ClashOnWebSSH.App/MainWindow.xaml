@@ -110,45 +110,43 @@
                 <ui:SmoothBorder Style="{StaticResource Card}" Margin="0,0,16,0"><StackPanel><TextBlock Text="当前分组" Style="{StaticResource Caption}"/><TextBlock Text="{Binding GroupCountText}" FontSize="22" FontWeight="SemiBold" Margin="0,13,0,0" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding NodeCountText}" Style="{StaticResource Caption}" Margin="0,8,0,0"/></StackPanel></ui:SmoothBorder>
                 <ui:SmoothBorder Style="{StaticResource Card}" Margin="0,0,16,0"><StackPanel><TextBlock Text="SSH 连接" Style="{StaticResource Caption}"/><TextBlock Text="{Binding ConnectionText}" FontSize="20" FontWeight="SemiBold" Margin="0,13,0,0"/><TextBlock Text="加密连接 · 本机遥控" Style="{StaticResource Caption}" Margin="0,8,0,0"/></StackPanel></ui:SmoothBorder>
             </UniformGrid>
-            <Grid Margin="0,0,0,16"><ui:SmoothBorder Style="{StaticResource Card}">
-                <StackPanel>
-                    <DockPanel Margin="0,0,0,16"><Button DockPanel.Dock="Right" Content="↻" Padding="10,4" MinHeight="28" Click="RefreshNetworkClicked" IsEnabled="{Binding CanReadNetwork}" ToolTip="刷新远端网络状态"/><TextBlock Text="网络设置" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
-                    <UniformGrid Columns="2" Margin="0,0,-12,0">
-                        <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="18" Padding="16" Margin="0,0,12,0">
-                            <StackPanel><DockPanel Margin="0,0,0,10"><ToggleButton x:Name="SystemProxySwitch" DockPanel.Dock="Right" Style="{StaticResource NetworkSwitch}" IsChecked="{Binding SystemProxyEnabled, Mode=OneWay}" IsEnabled="{Binding CanChangeSystemProxy}" Click="SystemProxyClicked" AutomationProperties.Name="服务器系统代理"/><TextBlock Text="系统代理" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel><TextBlock Text="当前用户的代理入口" Foreground="{DynamicResource Muted}" FontSize="11"/><TextBlock Text="{Binding SystemProxyHint}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/></StackPanel>
-                        </ui:SmoothBorder>
-                        <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="18" Padding="16" Margin="0,0,12,0">
-                            <StackPanel><DockPanel Margin="0,0,0,10"><ToggleButton x:Name="TunSwitch" DockPanel.Dock="Right" Style="{StaticResource NetworkSwitch}" IsChecked="{Binding TunEnabled, Mode=OneWay}" IsEnabled="{Binding CanChangeTun}" Click="TunClicked" AutomationProperties.Name="远端 TUN 虚拟网卡"/><TextBlock Text="TUN 虚拟网卡" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel><TextBlock Text="服务器流量接管" Foreground="{DynamicResource Muted}" FontSize="11"/><TextBlock Text="{Binding TunHint}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/><Button Content="准备 TUN 权限" Click="PrepareTunClicked" Padding="11,5" MinHeight="28" HorizontalAlignment="Left" Margin="0,9,0,0" Visibility="{Binding TunPreparationVisibility}" IsEnabled="{Binding CanPrepareTun}" Background="{DynamicResource CardSurface}" Foreground="{DynamicResource Accent}"/></StackPanel>
-                        </ui:SmoothBorder>
-                    </UniformGrid>
-                    <DockPanel Margin="0,12,0,0"><Button x:Name="RestoreDirectButton" DockPanel.Dock="Right" Content="恢复直连" Click="RestoreDirectClicked" IsEnabled="{Binding CanRestoreDirect}" Visibility="{Binding RestoreDirectVisibility}" Padding="12,5" MinHeight="30" Margin="12,0,0,0" Foreground="{DynamicResource Accent}"/><TextBlock Text="{Binding TakeoverText}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/></DockPanel>
-                    <TextBlock Text="切换接管模式会断开本内核已有连接，由程序按新设置重连。" Foreground="{DynamicResource Muted}" FontSize="10" Margin="0,7,0,0" TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding NetworkOperationText}" Foreground="{DynamicResource Accent}" FontSize="11" Margin="0,10,0,0" Visibility="{Binding NetworkOperationVisibility}" TextWrapping="Wrap"/>
-                </StackPanel>
-            </ui:SmoothBorder><ui:LoadingBorder IsActive="{Binding IsNetworkChanging}"/></Grid>
-            <Grid Margin="0,0,0,16"><ui:SmoothBorder Style="{StaticResource Card}">
-                <StackPanel><DockPanel Margin="0,0,0,8"><Button DockPanel.Dock="Right" Content="全部测试" Click="TestSitesClicked" Tag="all" Padding="13,6" MinHeight="30" IsEnabled="{Binding CanTestSites}"/><TextBlock Text="网站测试" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
-                    <TextBlock Text="{Binding WebsiteTestHint}" Style="{StaticResource Caption}" FontSize="11" Margin="0,0,0,16"/>
-                    <ItemsControl ItemsSource="{Binding Sites}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
-                        <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="18" Padding="12,15" Margin="0,0,8,0">
-                            <StackPanel><TextBlock Text="{Binding Mark}" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center"/><TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,7,0,12"/>
-                                <Border Background="{DynamicResource Outline}" Height="1" Margin="0,0,0,10"/>
-                                <Button Content="{Binding ResultText}" Tag="{Binding Id}" Click="TestSitesClicked" Padding="3,5" MinHeight="30" Foreground="{Binding ResultBrush}" Background="Transparent" IsEnabled="{Binding DataContext.CanTestSites, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="{Binding Detail}"/>
-                                <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" FontSize="10" TextTrimming="CharacterEllipsis" TextAlignment="Center" ToolTip="{Binding Detail}"/>
-                            </StackPanel>
-                        </ui:SmoothBorder>
-                    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                </StackPanel>
-            </ui:SmoothBorder><ui:LoadingBorder IsActive="{Binding IsSitesTesting}"/></Grid>
-            <ui:SmoothBorder Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel><TextBlock Text="快捷操作" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,18"/><WrapPanel>
-                    <Button Content="代理节点" Tag="0" Click="NavigateClicked" Margin="0,0,10,6"/>
-                    <Button Content="切换配置" Tag="1" Click="NavigateClicked" Margin="0,0,10,6"/>
-                    <Button Content="服务管理" Tag="3" Click="NavigateClicked" Margin="0,0,10,6"/>
-                    <Button Content="SSH 连接" Tag="5" Click="NavigateClicked" Margin="0,0,0,6"/>
-                </WrapPanel></StackPanel>
-            </ui:SmoothBorder>
-            <ui:SmoothBorder Style="{StaticResource Card}"><StackPanel><TextBlock Text="一台服务器，一个窗口" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="管理远端代理、订阅与用户服务。关闭这个窗口后，服务器上的代理继续运行。" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,0" LineHeight="23"/></StackPanel></ui:SmoothBorder>
+            <Grid x:Name="OverviewTools" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid x:Name="NetworkCard"><ui:SmoothBorder Style="{StaticResource Card}">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,14"><Button DockPanel.Dock="Right" Content="↻" Padding="10,4" MinHeight="28" Click="RefreshNetworkClicked" IsEnabled="{Binding CanReadNetwork}" ToolTip="刷新远端网络状态"/><TextBlock Text="网络设置" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
+                        <TabControl x:Name="NetworkModeTabs" Style="{StaticResource NetworkTabs}" SelectedIndex="0" SelectionChanged="NetworkTabChanged">
+                            <TabItem Header="系统代理">
+                                <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="18" Padding="16">
+                                    <StackPanel><DockPanel Margin="0,0,0,10"><ToggleButton x:Name="SystemProxySwitch" DockPanel.Dock="Right" Style="{StaticResource NetworkSwitch}" IsChecked="{Binding SystemProxyEnabled, Mode=OneWay}" IsEnabled="{Binding CanChangeSystemProxy}" Click="SystemProxyClicked" AutomationProperties.Name="服务器系统代理"/><TextBlock Text="系统代理" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel><TextBlock Text="当前用户的代理入口" Foreground="{DynamicResource Muted}" FontSize="11"/><TextBlock Text="{Binding SystemProxyHint}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/></StackPanel>
+                                </ui:SmoothBorder>
+                            </TabItem>
+                            <TabItem Header="TUN 虚拟网卡">
+                                <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="18" Padding="16">
+                                    <StackPanel><DockPanel Margin="0,0,0,10"><ToggleButton x:Name="TunSwitch" DockPanel.Dock="Right" Style="{StaticResource NetworkSwitch}" IsChecked="{Binding TunEnabled, Mode=OneWay}" IsEnabled="{Binding CanChangeTun}" Click="TunClicked" AutomationProperties.Name="远端 TUN 虚拟网卡"/><TextBlock Text="TUN 虚拟网卡" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel><TextBlock Text="服务器流量接管" Foreground="{DynamicResource Muted}" FontSize="11"/><TextBlock Text="{Binding TunHint}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/><Button Content="准备 TUN 权限" Click="PrepareTunClicked" Padding="11,5" MinHeight="28" HorizontalAlignment="Left" Margin="0,9,0,0" Visibility="{Binding TunPreparationVisibility}" IsEnabled="{Binding CanPrepareTun}" Background="{DynamicResource CardSurface}" Foreground="{DynamicResource Accent}"/></StackPanel>
+                                </ui:SmoothBorder>
+                            </TabItem>
+                        </TabControl>
+                        <DockPanel Margin="0,12,0,0"><Button x:Name="RestoreDirectButton" DockPanel.Dock="Right" Content="恢复直连" Click="RestoreDirectClicked" IsEnabled="{Binding CanRestoreDirect}" Visibility="{Binding RestoreDirectVisibility}" Padding="12,5" MinHeight="30" Margin="12,0,0,0" Foreground="{DynamicResource Accent}"/><TextBlock Text="{Binding TakeoverText}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/></DockPanel>
+                        <TextBlock Text="切换接管模式会断开本内核已有连接，由程序按新设置重连。" Foreground="{DynamicResource Muted}" FontSize="10" Margin="0,7,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding NetworkOperationText}" Foreground="{DynamicResource Accent}" FontSize="11" Margin="0,10,0,0" Visibility="{Binding NetworkOperationVisibility}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ui:SmoothBorder><ui:LoadingBorder IsActive="{Binding IsNetworkChanging}"/></Grid>
+                <Grid x:Name="SitesCard" Grid.Column="2"><ui:SmoothBorder Style="{StaticResource Card}">
+                    <StackPanel><DockPanel Margin="0,0,0,8"><Button DockPanel.Dock="Right" Content="全部测试" Click="TestSitesClicked" Tag="all" Padding="13,6" MinHeight="30" IsEnabled="{Binding CanTestSites}"/><TextBlock Text="网站测试" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
+                        <TextBlock Text="{Binding WebsiteTestHint}" Style="{StaticResource Caption}" FontSize="11" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                        <ItemsControl x:Name="WebsiteCards" ItemsSource="{Binding Sites}" Margin="0,0,-8,-8"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
+                            <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="18" Padding="12" Margin="0,0,8,8">
+                                <StackPanel><StackPanel Orientation="Horizontal" HorizontalAlignment="Center"><TextBlock Text="{Binding Mark}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
+                                    <Border Background="{DynamicResource Outline}" Height="1" Margin="0,9,0,6"/>
+                                    <Button Content="{Binding ResultText}" Tag="{Binding Id}" Click="TestSitesClicked" Padding="3,3" MinHeight="28" Foreground="{Binding ResultBrush}" Background="Transparent" IsEnabled="{Binding DataContext.CanTestSites, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="{Binding Detail}"/>
+                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" FontSize="10" TextTrimming="CharacterEllipsis" TextAlignment="Center" ToolTip="{Binding Detail}"/>
+                                </StackPanel>
+                            </ui:SmoothBorder>
+                        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                    </StackPanel>
+                </ui:SmoothBorder><ui:LoadingBorder IsActive="{Binding IsSitesTesting}"/></Grid>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </TabItem>
