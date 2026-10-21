@@ -45,17 +45,13 @@ public partial class MainWindow
     public bool CanTestSites => CanReadNetwork && _installed && _networkKnown && _networkApiAvailable && _tunRunning;
     public bool CanRestoreDirect => CanReadNetwork && _networkKnown && _takeoverKnown && _bothOff && !_directConfirmed && _networkApiAvailable && _tunRunning && !_tunPending && _proxySupported;
     public Visibility RestoreDirectVisibility => _connected && _networkKnown && _takeoverKnown && _bothOff && !_directConfirmed ? Visibility.Visible : Visibility.Collapsed;
-    public string TakeoverText => !_connected ? "两个开关都关闭时，服务器恢复直连。" : !_networkKnown || !_takeoverKnown ? "网络接管状态尚未确认，请刷新。"
-        : !_networkApiAvailable ? "内核状态未确认，请先启动服务或刷新。" : _tunPending ? "正在确认 TUN 连通，失败将自动回退。"
-        : _bothOff ? _directConfirmed ? "已恢复直连 · 旧终端无需清理代理变量。" : "两个开关均关闭，点击“恢复直连”停止使用代理出口。"
-        : _takeoverMode == "direct" ? "代理入口已开启 · 当前内核为直连模式。" : "正在使用" + (_takeoverMode == "global" ? "全局代理" : "规则分流") + " · 双关将恢复直连。";
     public string WebsiteTestHint => _networkKnown && _directConfirmed ? "从服务器直连测量 HTTPS 响应时间" : "从服务器按当前网络设置测量 HTTPS 响应时间";
     public Visibility ConnectPromptVisibility => _connected ? Visibility.Collapsed : Visibility.Visible;
     public Visibility TunPreparationVisibility => _connected && _installed && _networkKnown && !_tunReady && !_tunEnabled ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NetworkOperationVisibility => _networkOperation.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     public string NetworkOperationText => _networkOperation;
     public Brush ServiceSurface => (Brush)FindResource(_service == "运行中" ? "SuccessSurface" : "Block");
-    public string SystemProxyHint => !_connected ? "新终端自动配置；双关时旧终端也可直连。" : !_networkKnown ? "尚未读取状态，请刷新。" : !_proxySupported ? "当前登录 shell 不支持自动加载。" : _installed && !_networkApiAvailable ? "请先启动服务或恢复管理接口，再切换。" : _systemProxyEnabled ? "已开启 · 新终端自动使用远端代理。" : "已关闭 · 双关直连状态见下方。";
+    public string SystemProxyHint => !_connected ? "新终端自动配置；双关时旧终端也可直连。" : !_networkKnown ? "尚未读取状态，请刷新。" : !_proxySupported ? "当前登录 shell 不支持自动加载。" : _installed && !_networkApiAvailable ? "请先启动服务或恢复管理接口，再切换。" : _systemProxyEnabled ? "已开启 · 新终端自动使用远端代理。" : "已关闭 · 两个开关都关闭时恢复直连。";
     public string TunHint => !_connected ? "连接服务器后检查设备与权限。" : !_networkKnown ? "状态未确认，请刷新检查。" : _tunPending ? "正在确认 SSH 连通；失败将在约 75 秒后自动回退。" : _tunConfigured && !_tunEnabled && _networkApiAvailable ? "配置已开启但内核未启用，可关闭后恢复直连。" : _tunEnabled ? "已开启 · 内网与 SSH 客户端地址保持直连。" : _tunReason;
 
     internal void ApplyNetworkStatus(JsonElement data)

@@ -2,11 +2,11 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.4.3，2026-10-21。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261021-0.4.3.md)
+**版本0.4.4，2026-10-21。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261021-0.4.4.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
-概览的网络设置与网站测试左右各半宽，系统代理/TUN选项卡横滑切换，网站2×2展示；移除底部两块内容。GitHub测试的目标Host错误已修复。
+概览的网络设置与网站测试左右各半宽，系统代理/TUN选项卡横滑切换；网络卡片不再显示底部小字，网站测试单行四项紧凑展示。
 
 配置页点击整张卡片切换，当前配置整卡高亮；更新统一放在右上角“⋯”菜单，重复点击当前配置不会重启。
 
@@ -43,7 +43,7 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约141MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。旧EXE保留，关闭旧版后运行新EXE，连接设置沿用。
 
-104项Python隔离、53项C#本地/协议及46项WPF交互检查通过，共203项。本轮新增半宽布局、横滑选项卡及HTTPS目标Host/错误分类检查；真实服务器GitHub修复后返回HTTP206、526ms，配置摘要和PID未变。0.4.1的真实内核直连验证、现场只读结果及Linux网络验收边界见对应历史记录。两种架构内核及上传验证见0.3.1，真实订阅导入见0.2记录。
+104项Python隔离、53项C#本地/协议及46项WPF交互检查通过，共203项。本轮新增单行四项布局、标题不溢出测量及小字移除断言，未连接真实服务器；0.4.3的GitHub修复实测（HTTP206、526ms）及历史真实验证见对应记录。两种架构内核及上传验证见0.3.1，真实订阅导入见0.2记录。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 
