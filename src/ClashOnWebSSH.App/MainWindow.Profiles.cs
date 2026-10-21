@@ -9,14 +9,14 @@ namespace ClashOnWebSSH.App;
 
 public partial class MainWindow
 {
-    private bool _pythonAvailable, _yamlAvailable;
+    private bool _pythonAvailable, _yamlAvailable, _profileSelectionPending;
     public ObservableCollection<ConfigurationProfile> Configurations { get; } = new();
     public bool CanReadProfiles => CanOperate && _pythonAvailable;
     public bool CanImportProfiles => CanReadProfiles && _yamlAvailable;
     public bool CanManageService => CanReadProfiles && _installed;
     public string ProfilesHint => !_connected ? "连接服务器后，可导入订阅链接和 YAML 文件。" : !_yamlAvailable
         ? "请在服务管理的环境维护中准备 Python / YAML，再导入配置。"
-        : "订阅链接与 YAML 文件统一管理。导入不会改变当前代理；使用配置时会校验、备份并重启服务。";
+        : "点击配置卡片即可切换；右上角菜单可更新订阅。导入不会改变当前代理，切换时会校验、备份并重启服务。";
     public Visibility NoProfilesVisibility => Configurations.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility InstalledVisibility => _connected && _installed ? Visibility.Visible : Visibility.Collapsed;
     public Visibility UninstalledVisibility => _connected && !_installed ? Visibility.Visible : Visibility.Collapsed;
@@ -41,16 +41,17 @@ public partial class MainWindow
             await RefreshProfiles();
         });
     }
-    private async void ApplyProfileClicked(object sender, RoutedEventArgs e)
+    private async void SelectProfileClicked(object sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is not ConfigurationProfile profile) return;
-        if (!_installed) { await ShowDeploymentWizard(profile.Id); return; }
-        if (!_demo && !await ConfirmAsync($"使用「{profile.Name}」替换当前运行配置并重启服务？\n连接参数和回环监听会保留，失败将尝试恢复旧配置。", "切换配置")) return;
-        await Run("切换配置", async () => { await _remote!.InvokeAsync("profiles.apply", new { profileId = profile.Id }); await RefreshState(); });
-    }
-    private async void UpdateProfileClicked(object sender, RoutedEventArgs e)
-    {
-        if ((sender as Button)?.Tag is ConfigurationProfile profile) await UpdateConfiguration(profile);
+        if ((sender as Button)?.Tag is not ConfigurationProfile profile || !CanOperate || !profile.CanApply || _profileSelectionPending) return;
+        _profileSelectionPending = true;
+        try
+        {
+            if (!_installed) { await ShowDeploymentWizard(profile.Id); return; }
+            if (!_demo && !await ConfirmAsync($"使用「{profile.Name}」替换当前运行配置并重启服务？\n连接参数和回环监听会保留，失败将尝试恢复旧配置。", "切换配置")) return;
+            await Run("切换配置", async () => { await _remote!.InvokeAsync("profiles.apply", new { profileId = profile.Id }); await RefreshState(); });
+        }
+        finally { _profileSelectionPending = false; }
     }
     private async Task UpdateConfiguration(ConfigurationProfile profile)
     {
@@ -83,7 +84,8 @@ public partial class MainWindow
             await Run("删除配置", async () => { await _remote!.InvokeAsync("profiles.delete", new { profileId = profile.Id }); await RefreshProfiles(); });
         };
         menu.Items.Add(refresh); menu.Items.Add(rename); menu.Items.Add(new Separator()); menu.Items.Add(delete);
-        menu.PlacementTarget = (Button)sender; menu.IsOpen = true;
+        var button = (Button)sender;
+        button.ContextMenu = menu; menu.PlacementTarget = button; menu.IsOpen = true;
     }
     private async Task ShowDeploymentWizard(string? profileId = null)
     {
