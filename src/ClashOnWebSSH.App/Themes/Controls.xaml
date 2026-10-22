@@ -229,6 +229,33 @@
             <ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger></ControlTemplate.Triggers>
         </ControlTemplate></Setter.Value></Setter>
     </Style>
+    <Style x:Key="SavedServerSelector" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+            <Grid>
+                <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" ClickMode="Press" AutomationProperties.Name="展开已保存的服务器">
+                    <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+                        <ui:SmoothBorder x:Name="ArrowSurface" Background="Transparent" CornerRadius="0,12,12,0">
+                            <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="10" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </ui:SmoothBorder>
+                        <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ArrowSurface" Property="Background" Value="{DynamicResource Inset}"/></Trigger></ControlTemplate.Triggers>
+                    </ControlTemplate></ToggleButton.Template>
+                </ToggleButton>
+                <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" PlacementTarget="{Binding Parent, RelativeSource={RelativeSource TemplatedParent}}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                    <ui:SmoothBorder Background="{DynamicResource CardSurface}" CornerRadius="16" Padding="6" Margin="0,4,0,8" Width="{Binding Parent.ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                        <StackPanel>
+                            <TextBlock Text="已保存的服务器" Foreground="{DynamicResource Muted}" FontSize="11" Margin="12,8,12,6"/>
+                            <TextBlock x:Name="NoServers" Text="连接成功后会自动保存到这里" Foreground="{DynamicResource Muted}" Margin="12,10" Visibility="Collapsed"/>
+                            <ScrollViewer MaxHeight="320" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+                        </StackPanel>
+                    </ui:SmoothBorder>
+                </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="HasItems" Value="False"><Setter TargetName="NoServers" Property="Visibility" Value="Visible"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style TargetType="ComboBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="Padding" Value="12,10"/>
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem"><ui:SmoothBorder x:Name="Item" CornerRadius="10" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter/></ui:SmoothBorder><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Item" Property="Background" Value="{DynamicResource Block}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Foreground" Value="{DynamicResource Accent}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>

@@ -12,14 +12,14 @@ namespace ClashOnWebSSH.App;
 
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
-    private readonly SettingsStore _settings = new();
+    private readonly SettingsStore _settings;
     private readonly bool _demo;
     private RemoteActions? _remote;
     private bool _connected, _busy, _installed;
     private ProxyGroup? _group;
     private string _service = "尚未连接", _version = "—", _mode = "—", _port = "等待连接";
     private int _mixedPort = 7890;
-    private string _status = "点击概览中的连接按钮，或打开 SSH 连接页。", _sample = "";
+    private string _status = "选择已保存的服务器，或填写连接信息后连接。", _sample = "";
     private string _deployment = "连接后自动检查远端环境。已有代理直接管理，未安装时可在这里部署。";
     private string _logs = "连接服务器后，点击「读取最近 50 行」查看服务日志。";
     private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
@@ -56,9 +56,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public Visibility EmptyVisibility => Nodes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public MainWindow(bool demo = false)
+    public MainWindow(bool demo = false, SettingsStore? settings = null)
     {
         _demo = demo;
+        _settings = settings ?? new SettingsStore();
+        _savedConnections = new Connections.SavedConnectionStore(_settings.DirectoryPath);
         if (demo) { _maintenancePrivileges = RemotePrivilegeMode.PasswordRequired; _maintenancePrivilegesChecked = true; }
         NodesView = CollectionViewSource.GetDefaultView(Nodes);
         NodesView.Filter = item => item is NodeRow row && (string.IsNullOrWhiteSpace(SearchBox?.Text) || row.Name.Contains(SearchBox.Text, StringComparison.OrdinalIgnoreCase));
@@ -66,10 +68,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         InAppFeedback.Attach(this);
         DataContext = this;
-        var profile = _settings.Load();
-        HostBox.Text = profile.Host; UserBox.Text = profile.Username; PortBox.Text = profile.Port.ToString();
-        IdentityBox.Text = profile.IdentityFile; ServiceBox.Text = profile.ServiceName; ConfigBox.Text = profile.ConfigPath;
-        ApiPortBox.Text = profile.ControllerPort.ToString(); AuthBox.SelectedIndex = (int)profile.Authentication;
+        InitializeConnections();
         if (demo) Loaded += (_, _) => LoadDemo();
         Closing += (_, e) =>
         {
@@ -130,6 +129,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void AuthChanged(object sender, SelectionChangedEventArgs e)
     {
         if (PasswordPanel != null) PasswordPanel.Visibility = AuthBox.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
+        ClearSelectedConnection();
     }
 
     private async void ConnectClicked(object sender, RoutedEventArgs e)
@@ -140,16 +140,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _maintenancePrivilegesChecked = false; SudoPassword.Clear();
             _service = "已断开"; _version = "—"; _mode = "—"; _port = "连接已关闭";
             Groups.Clear(); Nodes.Clear(); Configurations.Clear(); _group = null; _networkKnown = false; SynchronizeProxyMode();
+            RestoreSelectedPassword();
             ConnectButton.Content = "连接服务器"; SetStatus("已断开 SSH；远端代理继续运行。"); Notify(); return;
         }
+        var connectionResult = "连接服务器完成";
         await Run("连接服务器", async () =>
         {
             var profile = ReadProfile();
+            var password = profile.Authentication == AuthenticationMode.Password ? LoginPassword.Password : "";
             ISshTransport transport;
-            if (profile.Authentication == AuthenticationMode.Password)
+            if (ConnectionTransportFactory is not null) transport = ConnectionTransportFactory(profile, password);
+            else if (profile.Authentication == AuthenticationMode.Password)
             {
                 var trust = new HostKeyStore(_settings.DirectoryPath);
-                transport = new PasswordSshTransport(profile, LoginPassword.Password, identity => trust.Verify(identity, host =>
+                transport = new PasswordSshTransport(profile, password, identity => trust.Verify(identity, host =>
                     Dispatcher.InvokeAsync(() => ConfirmAsync($"首次连接 {host.Host}:{host.Port}\n\n{host.Algorithm}\n{host.Fingerprint}\n\n请与服务器可信指纹核对。确认信任该主机？", "确认 SSH 主机身份")).Task.Unwrap().GetAwaiter().GetResult()));
             }
             else transport = new OpenSshTransport(profile);
@@ -160,7 +164,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _pythonAvailable = capabilities.Contains("python3");
                 _remote = actions; _connected = true;
                 await RefreshMaintenancePrivilegesAsync();
-                _settings.Save(profile);
                 ConnectButton.Content = "断开连接";
                 if (!capabilities.Contains("python3"))
                 {
@@ -169,6 +172,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     MainTabs.SelectedIndex = 3; Notify();
                 }
                 else await RefreshState();
+                connectionResult = RememberConnection(profile, password);
             }
             catch
             {
@@ -176,7 +180,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 throw;
             }
             finally { LoginPassword.Clear(); }
-        });
+        }, () => connectionResult);
+        if (_connected && connectionResult.Contains("未能保存")) InAppFeedback.Show(this, connectionResult, NoticeKind.Information);
         if (_connected && !_installed && !_demo) await ShowDeploymentWizard();
     }
 

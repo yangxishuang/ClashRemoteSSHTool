@@ -2,7 +2,7 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.6.1，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.6.1.md)
+**版本0.7.0，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.7.0.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
@@ -18,7 +18,7 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 
 ## 功能
 
-- 系统 OpenSSH 免密登录及 SSH 密码登录，密码不写入本机设置。
+- 系统 OpenSSH 免密登录及 SSH 密码登录；地址栏下拉选择成功连接过的服务器，保存用户名/端口/高级参数、加密密码或私钥路径。启动默认SSH页，填好后点击一次连接；可删除记录。
 - 服务、版本、模式、端口、分组和当前节点查询，节点搜索。
 - 规则/全局/直连模式切换，校验并保存运行配置，不重启服务；已有代理连接按新模式重连。
 - Selector 节点切换、单节点/分组测速、服务启停/重启。
@@ -38,7 +38,7 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 
 双击 EXE，无需另装 .NET 或本机 Python。免密模式使用 Windows OpenSSH 的已有配置；密码模式使用随附 SSH.NET。测试目标 `example.invalid`、用户名 `user`，需先登录校园网 VPN。
 
-本机保存连接设置、密码模式主机指纹及主题偏好，位置 `%LOCALAPPDATA%\ClashOnWebSSH`。SSH/sudo 密码及订阅 URL 不写本机设置。关闭窗口不停止远端代理。
+本机保存连接记录、密码模式主机指纹及主题偏好，位置 `%LOCALAPPDATA%\ClashOnWebSSH`。SSH密码通过Windows DPAPI当前用户加密，保存在connections.json；sudo密码、私钥内容及订阅URL不写本机设置。选择记录不自动连接，主机指纹照常核验。关闭窗口不停止远端代理。
 
 安装 .NET SDK **10.0.402** 后：
 
@@ -50,8 +50,8 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
 
-本轮67项WPF回归及深浅色/最小窗口渲染通过，未连接真实服务器。最近完整248项本地/回环检查及真实隔离内核证据见[0.6.0记录](docs/testing/VERIFICATION-20261022-0.6.0.md)，本轮TUN交互采用模拟传输，不等同于Linux TUN权限/路由验收。
+本轮完整271项检查通过（126项Python、62项C#本地/回环SSH、83项WPF），深浅色SSH页及下拉布局核对通过。连接记录使用真实Windows DPAPI，登录交互采用模拟传输；本轮未连接真实服务器。Linux TUN权限/路由及干净部署验收边界保持。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 
-当前基线 **DESKTOP-SSH-1.5**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络/代理模式见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-013](docs/adr/ADR-013-EXPLICIT-PROXY-MODES.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。
+当前基线 **DESKTOP-SSH-1.6**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络/代理模式见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-013](docs/adr/ADR-013-EXPLICIT-PROXY-MODES.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。

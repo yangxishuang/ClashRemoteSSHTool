@@ -25,7 +25,7 @@
         <Grid Grid.Column="1" Margin="24,16,24,16">
             <Grid.RowDefinitions><RowDefinition Height="72"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding PageTitle}" FontSize="26" FontWeight="SemiBold"/><TextBlock Text="{Binding PageSubtitle}" Style="{StaticResource Caption}" Margin="0,6,0,0"/></StackPanel><StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><ui:SmoothBorder Background="{DynamicResource CardSurface}" CornerRadius="16" Padding="12,7" Margin="0,0,12,0" VerticalAlignment="Center"><TextBlock Text="{Binding HeaderBadge}" FontSize="11" Foreground="{DynamicResource Muted}"/></ui:SmoothBorder><Button Content="&#xE793;" Style="{StaticResource IconButton}" Click="ToggleThemeClicked" ToolTip="切换深色 / 浅色主题"/></StackPanel></Grid>
-            <TabControl x:Name="MainTabs" Grid.Row="1" Style="{StaticResource PageTabs}" Margin="0,12,0,0" SelectedIndex="4" SelectionChanged="PageChanged">
+            <TabControl x:Name="MainTabs" Grid.Row="1" Style="{StaticResource PageTabs}" Margin="0,12,0,0" SelectedIndex="5" SelectionChanged="PageChanged">
                 <TabItem Header="代理节点">
                         <Grid Margin="0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -175,27 +175,42 @@
                     <TextBlock Text="使用已有 SSH 密钥，或通过账号密码登录。" Style="{StaticResource Caption}" Margin="0,8,0,24"/>
                     <StackPanel IsEnabled="{Binding CanEditConnection}">
                         <TextBlock Text="服务器地址" Style="{StaticResource SideLabel}"/>
-                        <TextBox x:Name="HostBox" Text="example.invalid" Margin="0,0,0,18"/>
+                        <Grid x:Name="ServerAddressRow" Margin="0,0,0,18">
+                            <TextBox x:Name="HostBox" Text="example.invalid" Padding="12,8,52,8" TextChanged="ConnectionTargetEdited" AutomationProperties.Name="服务器地址"/>
+                            <ComboBox x:Name="SavedServersBox" ItemsSource="{Binding SavedConnections}" SelectionChanged="SavedServerChanged" DropDownClosed="SavedServerDropdownClosed"
+                                      Style="{StaticResource SavedServerSelector}" Width="44" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                                      AutomationProperties.Name="已保存的服务器" ToolTip="选择已保存的服务器，自动填入登录信息">
+                                <ComboBox.ItemTemplate><DataTemplate>
+                                    <StackPanel MaxWidth="610">
+                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding AuthenticationLabel}" Style="{StaticResource Caption}" FontSize="11" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate></ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
                         <Grid Margin="0,0,0,18"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <StackPanel><TextBlock Text="用户名" Style="{StaticResource SideLabel}"/><TextBox x:Name="UserBox" Text="user"/></StackPanel>
-                            <StackPanel Grid.Column="2"><TextBlock Text="端口" Style="{StaticResource SideLabel}"/><TextBox x:Name="PortBox" Text="22"/></StackPanel>
+                            <StackPanel><TextBlock Text="用户名" Style="{StaticResource SideLabel}"/><TextBox x:Name="UserBox" Text="user" TextChanged="ConnectionTargetEdited"/></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="端口" Style="{StaticResource SideLabel}"/><TextBox x:Name="PortBox" Text="22" TextChanged="ConnectionTargetEdited"/></StackPanel>
                         </Grid>
                         <TextBlock Text="登录方式" Style="{StaticResource SideLabel}"/>
                         <ComboBox x:Name="AuthBox" SelectedIndex="0" SelectionChanged="AuthChanged" Margin="0,0,0,18"><ComboBoxItem Content="系统 SSH · 免密登录"/><ComboBoxItem Content="SSH 账号密码"/></ComboBox>
-                        <StackPanel x:Name="PasswordPanel" Visibility="Collapsed" Margin="0,0,0,18"><TextBlock Text="SSH 密码 · 不保存" Style="{StaticResource SideLabel}"/><PasswordBox x:Name="LoginPassword"/></StackPanel>
+                        <StackPanel x:Name="PasswordPanel" Visibility="Collapsed" Margin="0,0,0,18"><TextBlock Text="SSH 密码 · 连接成功后加密保存" Style="{StaticResource SideLabel}"/><PasswordBox x:Name="LoginPassword"/></StackPanel>
                         <Expander Header="高级连接设置" Foreground="{DynamicResource Muted}" Margin="0,0,0,20">
                             <StackPanel Margin="0,16,0,0">
-                                <TextBlock Text="私钥文件（系统 SSH 可选）" Style="{StaticResource SideLabel}"/><TextBox x:Name="IdentityBox" Margin="0,0,0,14"/>
+                                <TextBlock Text="私钥文件（系统 SSH 可选）" Style="{StaticResource SideLabel}"/><TextBox x:Name="IdentityBox" Margin="0,0,0,14" TextChanged="ConnectionTargetEdited"/>
                                 <TextBlock Text="用户服务名" Style="{StaticResource SideLabel}"/><TextBox x:Name="ServiceBox" Text="clash-verge.service" Margin="0,0,0,14"/>
                                 <TextBlock Text="远端配置文件" Style="{StaticResource SideLabel}"/><TextBox x:Name="ConfigBox" Text="~/.config/clash-verge/config.yaml" Margin="0,0,0,14"/>
                                 <TextBlock Text="管理 API 端口" Style="{StaticResource SideLabel}"/><TextBox x:Name="ApiPortBox" Text="9090"/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>
-                    <Button x:Name="ConnectButton" Content="连接服务器" Style="{StaticResource PrimaryButton}" Click="ConnectClicked" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Left" MinWidth="140"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="ConnectButton" Content="连接服务器" Style="{StaticResource PrimaryButton}" Click="ConnectClicked" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Left" MinWidth="140"/>
+                        <Button x:Name="ForgetConnectionButton" Content="删除记录" Click="ForgetConnectionClicked" IsEnabled="{Binding CanForgetConnection}" Margin="12,0,0,0" ToolTip="删除当前服务器的本机连接记录和保存的密码，保留主机信任记录。"/>
+                    </StackPanel>
                 </StackPanel>
             </ui:SmoothBorder>
-            <ui:SmoothBorder Style="{StaticResource Card}"><TextBlock Text="首次连接会核对主机指纹。SSH 与管理员密码仅在本次操作中使用，不保存到连接设置。校园网服务器请先连接 VPN。" Style="{StaticResource Caption}" TextWrapping="Wrap" LineHeight="22"/></ui:SmoothBorder>
+            <ui:SmoothBorder Style="{StaticResource Card}"><TextBlock Text="连接成功后自动记住服务器；密码使用 Windows 当前用户加密保存，免密登录仅保存私钥路径。首次连接仍需核对主机指纹，管理员密码不保存。校园网服务器请先连接 VPN。" Style="{StaticResource Caption}" TextWrapping="Wrap" LineHeight="22"/></ui:SmoothBorder>
         </StackPanel>
     </ScrollViewer>
 </TabItem>

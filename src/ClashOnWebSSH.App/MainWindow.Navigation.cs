@@ -11,7 +11,7 @@ namespace ClashOnWebSSH.App;
 public partial class MainWindow
 {
     private bool _sidebarExpanded = true;
-    private int _previousPage = 4;
+    private int _previousPage = 5;
     public string AppVersion => "v" + Assembly.GetExecutingAssembly().GetName().Version?.ToString(3);
     public string ConnectedHost => _connected ? HostBox.Text.Trim() : "尚未连接服务器";
     public Visibility SidebarTextVisibility => _sidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
