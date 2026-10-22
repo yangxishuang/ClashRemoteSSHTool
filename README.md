@@ -2,11 +2,13 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.6.0，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.6.0.md)
+**版本0.6.1，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.6.1.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
 概览顶部的代理服务与代理模式各半宽，规则/全局/直连在同一组选项卡中横滑切换，保存远端配置并回读。网络设置与网站测试也各半宽，标题与内边距对齐，网站测试单行四项且移除标题下小字；原“恢复直连”由代理模式的“直连”项替代。
+
+网络选项卡内容区缩到约原来一半，保留开关及状态。点击TUN先回读条件，已就绪直接开启；缺权限再显示准备窗口，确认“准备并开启TUN”后自动继续，取消或准备失败不提交开启。
 
 配置页点击整张卡片切换，当前配置整卡高亮；更新统一放在右上角“⋯”菜单，重复点击当前配置不会重启。
 
@@ -48,7 +50,7 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
 
-本轮126项Python、62项C#本地/回环SSH及60项WPF，共248项检查通过；深浅色及最小窗口核对。隔离的真实Windows mihomo验证三种模式、重启持久化和入口联动；未连接真实服务器，不等同于Linux TUN路由或完整部署验收。详见[验证记录](docs/testing/VERIFICATION-20261022-0.6.0.md)。
+本轮67项WPF回归及深浅色/最小窗口渲染通过，未连接真实服务器。最近完整248项本地/回环检查及真实隔离内核证据见[0.6.0记录](docs/testing/VERIFICATION-20261022-0.6.0.md)，本轮TUN交互采用模拟传输，不等同于Linux TUN权限/路由验收。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 

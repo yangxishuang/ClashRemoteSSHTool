@@ -151,7 +151,7 @@
     </Style>
     <Style x:Key="NetworkTabs" TargetType="TabControl">
         <Setter Property="ItemContainerStyle" Value="{StaticResource NetworkTabItem}"/>
-        <Setter Property="MinHeight" Value="144"/>
+        <Setter Property="MinHeight" Value="72"/>
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
             <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="16" Padding="3"><UniformGrid IsItemsHost="True" Rows="1"/></ui:SmoothBorder>

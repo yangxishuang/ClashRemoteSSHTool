@@ -8,6 +8,7 @@ namespace ClashOnWebSSH.App;
 public partial class TunPreparationWindow : Window, INotifyPropertyChanged
 {
     private readonly RemoteActions _remote;
+    private readonly bool _continueToEnable;
     private bool _busy = true, _offline, _completed;
     private RemotePrivilegeMode _privileges = RemotePrivilegeMode.Unknown;
     private string _progress = "正在检查管理员权限…";
@@ -18,6 +19,9 @@ public partial class TunPreparationWindow : Window, INotifyPropertyChanged
     public Visibility PlaceholderVisibility => SudoBox.Password.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OfflineVisibility => _offline ? Visibility.Visible : Visibility.Collapsed;
     public string ProgressText => _progress;
+    public bool Prepared => _completed;
+    public string PreparationAction => _continueToEnable ? "准备并开启 TUN" : "准备并重启服务";
+    public string PreparationDescription => "使用可信的系统内核副本，或自动下载并校验官方内核。管理员操作将准备 ACL、网络权限和后台运行条件，随后重启当前用户的代理服务。" + (_continueToEnable ? "准备成功后继续开启 TUN，并检查 SSH 连通；未确认将约 75 秒后自动回退。" : "准备完成后 TUN 仍保持关闭。");
     public string PrivilegeText => _privileges switch
     {
         RemotePrivilegeMode.Root => "当前以 root 登录，无需输入管理员密码。",
@@ -26,9 +30,9 @@ public partial class TunPreparationWindow : Window, INotifyPropertyChanged
         _ => "填写远端 Linux 用户的 sudo 密码，仅本次使用。"
     };
     public event PropertyChangedEventHandler? PropertyChanged;
-    public TunPreparationWindow(RemoteActions remote)
+    public TunPreparationWindow(RemoteActions remote, bool continueToEnable = false)
     {
-        _remote = remote; InitializeComponent(); InAppFeedback.Attach(this); DataContext = this;
+        _remote = remote; _continueToEnable = continueToEnable; InitializeComponent(); InAppFeedback.Attach(this); DataContext = this;
         Loaded += async (_, _) =>
         {
             try { _privileges = await _remote.CheckPrivilegesAsync(); _progress = "确认准备后将重启远端代理服务。"; }
@@ -61,6 +65,6 @@ public partial class TunPreparationWindow : Window, INotifyPropertyChanged
         }
         catch (KernelAcquisitionException error) { _offline = true; _progress = Redactor.Clean(error.Message); InAppFeedback.Show(this, _progress, NoticeKind.Error); }
         catch (Exception error) { _progress = Redactor.Clean(error.Message); InAppFeedback.Show(this, _progress, NoticeKind.Error); }
-        finally { password = ""; _busy = false; Notify(); }
+        finally { password = ""; _busy = false; Notify(); if (_completed && _continueToEnable) DialogResult = true; }
     }
 }

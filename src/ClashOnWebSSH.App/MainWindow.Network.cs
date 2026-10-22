@@ -44,12 +44,11 @@ public partial class MainWindow
     public bool TunEnabled => _networkKnown && (_tunEnabled || _tunConfigured);
     public bool CanReadNetwork => CanOperate && _connected;
     public bool CanChangeSystemProxy => CanReadNetwork && _networkKnown && _proxySupported && !_tunPending && (_installed ? _networkApiAvailable : _systemProxyEnabled);
-    public bool CanChangeTun => CanReadNetwork && _networkKnown && _networkApiAvailable && !_tunPending && (_tunEnabled || _tunConfigured || _tunReady);
+    public bool CanChangeTun => CanReadNetwork && _networkKnown && _networkApiAvailable && !_tunPending && (_tunEnabled || _tunConfigured || _tunReady || CanPrepareTun);
     public bool CanPrepareTun => CanReadNetwork && _networkKnown && _tunDevice && _tunRunning && !_tunPending;
     public bool CanTestSites => CanReadNetwork && _installed && _networkKnown && _networkApiAvailable && _tunRunning;
     public string WebsiteTestHint => _networkKnown && _directConfirmed ? "从服务器直连测量 HTTPS 响应时间" : "从服务器按当前网络设置测量 HTTPS 响应时间";
     public Visibility ConnectPromptVisibility => _connected ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility TunPreparationVisibility => _connected && _installed && _networkKnown && !_tunReady && !_tunEnabled ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NetworkOperationVisibility => _networkOperation.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     public string NetworkOperationText => _networkOperation;
     public Brush ServiceSurface => (Brush)FindResource(_service == "运行中" ? "SuccessSurface" : "Block");
@@ -118,28 +117,36 @@ public partial class MainWindow
     {
         var enabled = ((ToggleButton)sender).IsChecked == true;
         Notify();
+        if (!CanChangeTun) return;
         if (_demo) { await Run("切换 TUN", () => Task.CompletedTask); return; }
-        if (!await ConfirmAsync(enabled
-            ? "将重启远端代理并启用 TUN，接管服务器流量。内网及当前 SSH 客户端地址保持直连。若客户端无法重新确认 SSH 连通，约 75 秒后自动恢复原配置。\n\n确认开启？"
-            : "将关闭远端 TUN 并重启代理。若系统代理也已关闭，将恢复直连；旧终端无需清理代理变量。已有代理连接会重新建立。\n\n确认关闭？", "切换 TUN 虚拟网卡")) { Notify(); return; }
-        _networkOperation = enabled ? "正在开启 TUN 并重新确认 SSH 连通…" : "正在关闭 TUN 并核验状态…";
+        _networkOperation = "正在检查 TUN 设备与权限…";
         var message = "TUN 状态已确认";
         try
         {
             await Run("切换 TUN", async () =>
             {
+                await RefreshNetwork();
+                if (_tunPending) throw new InvalidOperationException("TUN 正等待连通确认或自动回退，请稍后刷新。");
+                if (!_networkApiAvailable) throw new InvalidOperationException("管理接口暂不可达，请先检查服务。");
+                if (enabled && !_tunReady)
+                {
+                    if (!_tunDevice || !_tunRunning) throw new InvalidOperationException(TunHint);
+                    _networkOperation = "需要先准备 TUN 权限…"; Notify();
+                    var preparation = new TunPreparationWindow(_remote!, continueToEnable: true) { Owner = this, ShowInTaskbar = false };
+                    await Task.Yield();
+                    preparation.ShowDialog();
+                    await RecheckNetwork(true);
+                    if (!preparation.Prepared) { message = "已取消 TUN 权限准备"; return; }
+                    if (!_networkKnown || !_tunReady) throw new InvalidOperationException("准备后的 TUN 条件未确认，请刷新核对；未提交开启。");
+                }
+                _networkOperation = enabled ? "正在开启 TUN 并重新确认 SSH 连通…" : "正在关闭 TUN 并核验状态…"; Notify();
                 try { message = Text((await _remote!.SetTunAsync(enabled)).Data, "message", message); }
                 finally { await RecheckNetwork(true); }
+                if (!_networkKnown || _tunPending || _tunEnabled != enabled)
+                    throw new InvalidOperationException("TUN 最新状态未能确认，请刷新核对；不要重复提交。");
             }, () => message);
         }
         finally { _networkOperation = ""; Notify(); }
-    }
-    private async void PrepareTunClicked(object sender, RoutedEventArgs e)
-    {
-        if (!CanPrepareTun) return;
-        if (_demo) { await Run("准备 TUN 权限", () => Task.CompletedTask); return; }
-        new TunPreparationWindow(_remote!) { Owner = this }.ShowDialog();
-        await Run("刷新远端状态", RefreshState);
     }
     private async void TestSitesClicked(object sender, RoutedEventArgs e)
     {
