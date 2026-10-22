@@ -32,7 +32,7 @@
                                 <ComboBox x:Name="GroupBox" ItemsSource="{Binding Groups}" DisplayMemberPath="Name" SelectionChanged="GroupChanged" IsEnabled="{Binding CanOperate}"/>
                                 <TextBox x:Name="SearchBox" Grid.Column="1" Margin="10,0,10,0" TextChanged="SearchChanged" ToolTip="搜索节点名称或地区"/>
                                 <Button Grid.Column="2" Content="↻  刷新" Click="RefreshClicked" IsEnabled="{Binding CanOperate}" Margin="0,0,8,0"/>
-                                <Button Grid.Column="3" Content="分组测速" Click="GroupDelayClicked" Style="{StaticResource PrimaryButton}" IsEnabled="{Binding CanOperate}"/>
+                                <Button Grid.Column="3" Content="测试延迟" Click="GroupDelayClicked" Style="{StaticResource PrimaryButton}" IsEnabled="{Binding CanOperate}"/>
                             </Grid>
                             <ui:SmoothBorder Grid.Row="1" Background="{DynamicResource Block}" CornerRadius="7" Padding="11,9" Margin="0,0,0,12"><TextBlock Text="{Binding CurrentNodeText}" Foreground="{DynamicResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis"/></ui:SmoothBorder>
                             <Grid Grid.Row="2">
@@ -49,7 +49,7 @@
                                                     <TextBlock Grid.Row="2" Text="{Binding DelayText}" Style="{StaticResource NodeLatency}" VerticalAlignment="Center" Margin="0,0,38,0"/>
                                                 </Grid>
                                             </Button>
-                                            <Button Content="&#xE9D9;" FontFamily="Segoe MDL2 Assets" Tag="{Binding}" Click="NodeDelayClicked" Width="30" Height="26" MinHeight="26" Padding="0" FontSize="13" Margin="0,0,10,11" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Foreground="{DynamicResource Accent}" ToolTip="仅测试此节点的延迟" AutomationProperties.Name="{Binding Name, StringFormat=测速 {0}}"/>
+                                            <Button Content="&#xE9D9;" FontFamily="Segoe MDL2 Assets" Tag="{Binding}" Click="NodeDelayClicked" Width="30" Height="26" MinHeight="26" Padding="0" FontSize="13" Margin="0,0,10,9" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Foreground="{DynamicResource Accent}" ToolTip="仅测试此节点的延迟" AutomationProperties.Name="{Binding Name, StringFormat=测速 {0}}"/>
                                         </Grid>
                                     </DataTemplate></ItemsControl.ItemTemplate>
                                 </ItemsControl>

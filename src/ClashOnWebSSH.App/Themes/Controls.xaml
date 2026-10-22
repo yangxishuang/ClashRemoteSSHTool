@@ -53,7 +53,7 @@
         </Setter.Value></Setter>
     </Style>
     <Style x:Key="NodeCard" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Padding" Value="14,12"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="Padding" Value="14,10"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/>
         <Setter Property="Background" Value="{DynamicResource CardSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource Outline}"/><Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
             <Grid>

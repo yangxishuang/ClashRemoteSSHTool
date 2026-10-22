@@ -8,7 +8,7 @@ namespace ClashOnWebSSH.App.Controls;
 // Equal-width tiles, generated only for the viewport and one extra row on each side.
 public sealed class VirtualizingCardPanel : VirtualizingPanel, IScrollInfo
 {
-    private const double Gap = 8, CardHeight = 132, RowHeight = CardHeight + Gap;
+    private const double Gap = 8, CardHeight = 112, RowHeight = CardHeight + Gap;
     private Size _extent, _viewport;
     private double _offset, _cardWidth;
     private int _columns = 1;
