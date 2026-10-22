@@ -56,7 +56,7 @@ public sealed partial class RemoteActions : IDisposable
     {
         var allowed = new[] { "probe", "core.status", "groups", "select", "delay", "service", "logs", "connectivity", "mode", "update", "deploy",
             "profiles.list", "profiles.source", "profiles.preview", "profiles.import", "profiles.apply", "profiles.update", "profiles.rename", "profiles.delete", "uninstall.plan", "uninstall",
-            "network.status", "network.test", "network.system-proxy", "network.tun.prepare", "network.tun.set", "network.tun.confirm" };
+            "network.status", "network.test", "network.mode", "network.system-proxy", "network.tun.prepare", "network.tun.set", "network.tun.confirm" };
         if (!allowed.Contains(action)) throw new ArgumentException("不支持的远端动作。");
         await _operations.WaitAsync(cancellation);
         try
@@ -73,7 +73,7 @@ public sealed partial class RemoteActions : IDisposable
                     payload[entry.Name] = entry.Value;
                 }
             var seconds = action is "deploy" or "update" or "profiles.import" or "profiles.preview" or "profiles.apply" or "profiles.update" ? 600
-                : action == "delay" ? 2400 : action is "service" or "uninstall" or "network.tun.prepare" ? 120 : action is "network.tun.set" or "network.system-proxy" ? 240 : action.StartsWith("network.") ? 45 : 25;
+                : action == "delay" ? 2400 : action is "service" or "uninstall" or "network.tun.prepare" ? 120 : action is "network.tun.set" or "network.system-proxy" or "network.mode" ? 240 : action.StartsWith("network.") ? 45 : 25;
             var network = action.StartsWith("network.");
             var input = (network ? EncodeScript(NetworkScript) + "\n" : "") + JsonSerializer.Serialize(payload, WireJson);
             var result = await _transport.ExecuteAsync(network ? NetworkCommand : ScriptCommand, input, TimeSpan.FromSeconds(seconds), cancellation);

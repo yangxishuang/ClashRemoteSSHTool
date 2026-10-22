@@ -151,14 +151,20 @@
     </Style>
     <Style x:Key="NetworkTabs" TargetType="TabControl">
         <Setter Property="ItemContainerStyle" Value="{StaticResource NetworkTabItem}"/>
+        <Setter Property="MinHeight" Value="144"/>
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
             <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="16" Padding="3"><UniformGrid IsItemsHost="True" Columns="2"/></ui:SmoothBorder>
-                <Grid Grid.Row="1" Margin="0,12,0,0" ClipToBounds="True" MinHeight="144">
+                <ui:SmoothBorder Background="{DynamicResource Block}" CornerRadius="16" Padding="3"><UniformGrid IsItemsHost="True" Rows="1"/></ui:SmoothBorder>
+                <Grid Grid.Row="1" Margin="0,12,0,0" ClipToBounds="True" MinHeight="{TemplateBinding MinHeight}">
                     <ContentPresenter x:Name="SwitchContent" ContentSource="SelectedContent"><ContentPresenter.RenderTransform><TranslateTransform/></ContentPresenter.RenderTransform></ContentPresenter>
                 </Grid>
             </Grid>
         </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ProxyModeTabs" TargetType="TabControl" BasedOn="{StaticResource NetworkTabs}">
+        <Setter Property="MinHeight" Value="58"/>
+        <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+        <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger></Style.Triggers>
     </Style>
     <Style x:Key="NetworkSwitch" TargetType="ToggleButton">
         <Setter Property="Width" Value="48"/><Setter Property="Height" Value="30"/><Setter Property="Cursor" Value="Hand"/>

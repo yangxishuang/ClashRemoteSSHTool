@@ -139,7 +139,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _remote?.Dispose(); _remote = null; _connected = false;
             _maintenancePrivilegesChecked = false; SudoPassword.Clear();
             _service = "已断开"; _version = "—"; _mode = "—"; _port = "连接已关闭";
-            Groups.Clear(); Nodes.Clear(); Configurations.Clear(); _group = null; _networkKnown = false;
+            Groups.Clear(); Nodes.Clear(); Configurations.Clear(); _group = null; _networkKnown = false; SynchronizeProxyMode();
             ConnectButton.Content = "连接服务器"; SetStatus("已断开 SSH；远端代理继续运行。"); Notify(); return;
         }
         await Run("连接服务器", async () =>

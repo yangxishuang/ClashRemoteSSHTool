@@ -2,11 +2,11 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.5.2，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.5.2.md)
+**版本0.6.0，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.6.0.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
-概览的网络设置与网站测试左右各半宽，系统代理/TUN选项卡横滑切换；网络卡片不再显示底部小字，网站测试单行四项紧凑展示。
+概览顶部的代理服务与代理模式各半宽，规则/全局/直连在同一组选项卡中横滑切换，保存远端配置并回读。网络设置与网站测试也各半宽，标题与内边距对齐，网站测试单行四项且移除标题下小字；原“恢复直连”由代理模式的“直连”项替代。
 
 配置页点击整张卡片切换，当前配置整卡高亮；更新统一放在右上角“⋯”菜单，重复点击当前配置不会重启。
 
@@ -18,6 +18,7 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 
 - 系统 OpenSSH 免密登录及 SSH 密码登录，密码不写入本机设置。
 - 服务、版本、模式、端口、分组和当前节点查询，节点搜索。
+- 规则/全局/直连模式切换，校验并保存运行配置，不重启服务；已有代理连接按新模式重连。
 - Selector 节点切换、单节点/分组测速、服务启停/重启。
 - 最近日志、远端代理连通检查、复制终端代理命令。
 - 订阅链接/YAML导入、配置卡片、流量/到期、切换、更新、重命名及删除；切换保护固定设置并支持失败恢复。
@@ -47,8 +48,8 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
 
-本轮55项WPF检查通过，深浅色及最小窗口实际渲染已核对；未连接真实服务器。最近完整233项本地/回环检查见[0.5.1记录](docs/testing/VERIFICATION-20261021-0.5.1.md)，内置部署资源及真实内核离线校验证据见[0.5.0记录](docs/testing/VERIFICATION-20261021-0.5.0.md)，不等同于干净Linux完整部署验收。
+本轮126项Python、62项C#本地/回环SSH及60项WPF，共248项检查通过；深浅色及最小窗口核对。隔离的真实Windows mihomo验证三种模式、重启持久化和入口联动；未连接真实服务器，不等同于Linux TUN路由或完整部署验收。详见[验证记录](docs/testing/VERIFICATION-20261022-0.6.0.md)。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 
-当前基线 **DESKTOP-SSH-1.4**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络控制见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-010](docs/adr/ADR-010-REMOTE-NETWORK-CONTROLS.md)/[ADR-011](docs/adr/ADR-011-TAKEOVER-DIRECT.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。
+当前基线 **DESKTOP-SSH-1.5**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络/代理模式见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-013](docs/adr/ADR-013-EXPLICIT-PROXY-MODES.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。

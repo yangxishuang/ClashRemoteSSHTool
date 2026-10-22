@@ -22,16 +22,20 @@ public partial class MainWindow
     private void NetworkTabChanged(object sender, SelectionChangedEventArgs e)
     {
         if (sender is not TabControl tabs || !ReferenceEquals(e.Source, tabs) || tabs.SelectedIndex < 0) return;
+        SlideTabContent(tabs, _previousNetworkTab);
+        _previousNetworkTab = tabs.SelectedIndex;
+    }
+    private static void SlideTabContent(TabControl tabs, int previous)
+    {
         if (tabs.IsLoaded && tabs.Template.FindName("SwitchContent", tabs) is ContentPresenter host)
         {
-            var direction = tabs.SelectedIndex >= _previousNetworkTab ? 1 : -1;
+            var direction = tabs.SelectedIndex >= previous ? 1 : -1;
             var transform = host.RenderTransform as TranslateTransform;
             if (transform is null || transform.IsFrozen) host.RenderTransform = transform = new TranslateTransform();
             transform.BeginAnimation(TranslateTransform.XProperty,
                 new DoubleAnimation(direction * host.ActualWidth, 0, Motion.Common) { EasingFunction = Motion.EaseOut() });
             host.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, Motion.Fast));
         }
-        _previousNetworkTab = tabs.SelectedIndex;
     }
     public bool IsNetworkChanging => _busy && !_testingSites && _networkOperation.Length > 0;
     public bool IsSitesTesting => _busy && _testingSites;
@@ -43,15 +47,13 @@ public partial class MainWindow
     public bool CanChangeTun => CanReadNetwork && _networkKnown && _networkApiAvailable && !_tunPending && (_tunEnabled || _tunConfigured || _tunReady);
     public bool CanPrepareTun => CanReadNetwork && _networkKnown && _tunDevice && _tunRunning && !_tunPending;
     public bool CanTestSites => CanReadNetwork && _installed && _networkKnown && _networkApiAvailable && _tunRunning;
-    public bool CanRestoreDirect => CanReadNetwork && _networkKnown && _takeoverKnown && _bothOff && !_directConfirmed && _networkApiAvailable && _tunRunning && !_tunPending && _proxySupported;
-    public Visibility RestoreDirectVisibility => _connected && _networkKnown && _takeoverKnown && _bothOff && !_directConfirmed ? Visibility.Visible : Visibility.Collapsed;
     public string WebsiteTestHint => _networkKnown && _directConfirmed ? "从服务器直连测量 HTTPS 响应时间" : "从服务器按当前网络设置测量 HTTPS 响应时间";
     public Visibility ConnectPromptVisibility => _connected ? Visibility.Collapsed : Visibility.Visible;
     public Visibility TunPreparationVisibility => _connected && _installed && _networkKnown && !_tunReady && !_tunEnabled ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NetworkOperationVisibility => _networkOperation.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     public string NetworkOperationText => _networkOperation;
     public Brush ServiceSurface => (Brush)FindResource(_service == "运行中" ? "SuccessSurface" : "Block");
-    public string SystemProxyHint => !_connected ? "新终端自动配置；双关时旧终端也可直连。" : !_networkKnown ? "尚未读取状态，请刷新。" : !_proxySupported ? "当前登录 shell 不支持自动加载。" : _installed && !_networkApiAvailable ? "请先启动服务或恢复管理接口，再切换。" : _systemProxyEnabled ? "已开启 · 新终端自动使用远端代理。" : "已关闭 · 两个开关都关闭时恢复直连。";
+    public string SystemProxyHint => !_connected ? "新终端自动配置；双关时旧终端也可直连。" : !_networkKnown ? "尚未读取状态，请刷新。" : !_proxySupported ? "当前登录 shell 不支持自动加载。" : _installed && !_networkApiAvailable ? "请先启动服务或恢复管理接口，再切换。" : _systemProxyEnabled ? "已开启 · 新终端自动使用远端代理。" : "已关闭 · 关闭最后一个入口时恢复直连。";
     public string TunHint => !_connected ? "连接服务器后检查设备与权限。" : !_networkKnown ? "状态未确认，请刷新检查。" : _tunPending ? "正在确认 SSH 连通；失败将在约 75 秒后自动回退。" : _tunConfigured && !_tunEnabled && _networkApiAvailable ? "配置已开启但内核未启用，可关闭后恢复直连。" : _tunEnabled ? "已开启 · 内网与 SSH 客户端地址保持直连。" : _tunReason;
 
     internal void ApplyNetworkStatus(JsonElement data)
@@ -73,13 +75,13 @@ public partial class MainWindow
             : !Flag(tun, "timer") ? "服务器缺少 systemd-run，无法安排自动回退。"
             : "已关闭 · 设备和权限就绪。";
         if (Text(tun, "apiError").Length > 0) { _tunReady = false; _tunReason = "管理接口暂不可达，请先检查服务。"; }
-        _networkKnown = true; Notify();
+        _networkKnown = true; SynchronizeProxyMode(); Notify();
     }
     private async Task RefreshNetwork()
     {
-        if (_remote is null) { _networkKnown = false; Notify(); return; }
+        if (_remote is null) { _networkKnown = false; SynchronizeProxyMode(); Notify(); return; }
         try { ApplyNetworkStatus((await _remote.InvokeAsync("network.status")).Data); }
-        catch { _networkKnown = false; Notify(); throw; }
+        catch { _networkKnown = false; SynchronizeProxyMode(); Notify(); throw; }
     }
     private async Task RecheckNetwork(bool routing = false)
     {
@@ -96,8 +98,6 @@ public partial class MainWindow
     }
     private async void RefreshNetworkClicked(object sender, RoutedEventArgs e) => await Run("刷新网络状态", RefreshNetwork);
     private async void SystemProxyClicked(object sender, RoutedEventArgs e) => await ChangeSystemProxy(((ToggleButton)sender).IsChecked == true);
-    private async void RestoreDirectClicked(object sender, RoutedEventArgs e)
-    { if (CanRestoreDirect) await ChangeSystemProxy(false); }
     private async Task ChangeSystemProxy(bool enabled)
     {
         Notify();

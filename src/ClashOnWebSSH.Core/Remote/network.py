@@ -134,8 +134,86 @@ def takeover_plan(config, runtime, state, proxy_enabled, tun_enabled):
 def takeover_status(config, runtime, state, proxy, api_error):
     mode = runtime.get("mode", "")
     both_off = not proxy["enabled"] and not runtime.get("tun", {}).get("enable", False) and not config.get("tun", {}).get("enable", False)
-    return {"bothOff": both_off, "mode": mode, "resumeMode": state.get("resumeMode", mode),
+    return {"bothOff": both_off, "mode": mode, "configuredMode": config.get("mode", "rule"), "resumeMode": state.get("resumeMode", mode),
             "directConfirmed": not api_error and both_off and mode == config.get("mode") == "direct"}
+
+
+def set_proxy_mode(request):
+    import yaml
+    mode = request.get("mode")
+    if mode not in ("rule", "global", "direct"):
+        raise ValueError("模式仅支持 rule、global、direct")
+    path = private_path(config_path(request))
+    original = path.read_bytes()
+    permissions = path.stat().st_mode & 0o777
+    config = load_yaml(original)
+    runtime = api(request, "/configs")
+    before_mode = runtime.get("mode")
+    if before_mode not in ("rule", "global", "direct"):
+        raise RuntimeError("无法确认内核运行模式，未修改")
+    previous = read_network_state(request)
+    candidate = copy.deepcopy(config)
+    candidate["mode"] = mode
+    content = original if candidate == config else yaml.safe_dump(candidate, allow_unicode=True, sort_keys=False).encode("utf-8")
+    if content != original:
+        with tempfile.TemporaryDirectory(prefix=".clashonweb-mode-check-", dir=path.parent) as staging:
+            staged = pathlib.Path(staging) / "candidate.yaml"
+            staged.write_bytes(content)
+            os.chmod(staged, 0o600)
+            verify_core(core_binary(request), staged, path.parent)
+    before_hash = hashlib.sha256(original).hexdigest()
+    after_hash = hashlib.sha256(content).hexdigest()
+    if file_hash(path) != before_hash:
+        raise RuntimeError("配置已被其他程序修改，未切换模式")
+    state_path = private_path(network_state_path(request))
+    old_state = state_path.read_bytes() if state_path.exists() else None
+    catalog = read_catalog(request)
+    # An explicit mode choice supersedes the automatic both-off DIRECT override.
+    # The next last-entry-off transition still records this choice for resuming.
+    state = dict(previous, resumeMode=mode, directOverride=False, appliedMode=mode,
+                 phase="active" if runtime.get("tun", {}).get("enable") or config.get("tun", {}).get("enable") else "off",
+                 beforeHash=before_hash, afterHash=after_hash,
+                 profileId=current_profile_id(request, catalog), catalogHash=catalog.get("activeHash", ""))
+    encoded_state = json.dumps(state).encode()
+    try:
+        if content != original:
+            atomic_write(path, content, permissions)
+        if before_mode != mode:
+            api(request, "/configs", "PATCH", {"mode": mode})
+        if api(request, "/configs").get("mode") != mode:
+            raise RuntimeError("内核模式切换未确认")
+        network_dir(request)
+        if (state_path.read_bytes() if state_path.exists() else None) != old_state:
+            raise RuntimeError("网络记录出现外部修改，未覆盖")
+        atomic_write(state_path, encoded_state)
+        # Close existing keepalive/CONNECT streams so they reconnect in the new mode.
+        api(request, "/connections", "DELETE")
+        if api(request, "/configs").get("mode") != mode or file_hash(path) != after_hash or state_path.read_bytes() != encoded_state:
+            raise RuntimeError("模式最终状态未确认")
+    except Exception as error:
+        try:
+            if file_hash(path) not in (before_hash, after_hash):
+                raise RuntimeError("运行配置出现外部修改，未覆盖")
+            actual = api(request, "/configs").get("mode")
+            if actual not in (before_mode, mode):
+                raise RuntimeError("内核模式出现外部修改，未覆盖")
+            current_state = state_path.read_bytes() if state_path.exists() else None
+            if current_state not in (old_state, encoded_state):
+                raise RuntimeError("网络记录出现外部修改，未覆盖")
+            atomic_write(path, original, permissions)
+            if actual != before_mode:
+                api(request, "/configs", "PATCH", {"mode": before_mode})
+            if api(request, "/configs").get("mode") != before_mode or file_hash(path) != before_hash:
+                raise RuntimeError("原模式未确认恢复")
+            if old_state is None:
+                if state_path.exists():
+                    state_path.unlink()
+            else:
+                atomic_write(state_path, old_state)
+        except Exception:
+            raise RuntimeError("模式切换与恢复未能全部确认，请刷新或通过 SSH 检查；不要重复提交")
+        raise RuntimeError("模式切换失败，原模式已恢复：" + str(error))
+    return {"mode": mode, "message": "代理模式已切换并保存，已有代理连接将按新模式重连"}
 
 
 def snapshot_proxy_files():
@@ -579,6 +657,8 @@ def network_execute(request):
             ensure_network_settled(request)
         if action == "network.system-proxy":
             return set_system_proxy(request)
+        if action == "network.mode":
+            return set_proxy_mode(request)
         if action == "network.tun.prepare":
             return prepare_tun_service(request)
         if action == "network.tun.set":
