@@ -2,11 +2,13 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.7.0，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.7.0.md)
+**版本0.7.1，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.7.1.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
 概览顶部的代理服务与代理模式各半宽，规则/全局/直连在同一组选项卡中横滑切换，保存远端配置并回读。网络设置与网站测试也各半宽，标题与内边距对齐，网站测试单行四项且移除标题下小字；原“恢复直连”由代理模式的“直连”项替代。
+
+0.7.1修复TUN权限准备时用户服务出现218/CAPABILITIES：保留独立root内核的文件能力与UID ACL，取消用户unit中的CapabilityBoundingSet；失败保留具体原因，原服务及API均回读成功才显示已恢复。
 
 网络选项卡内容区缩到约原来一半，保留开关及状态。点击TUN先回读条件，已就绪直接开启；缺权限再显示准备窗口，确认“准备并开启TUN”后自动继续，取消或准备失败不提交开启。
 
@@ -50,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 
 产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
 
-本轮完整271项检查通过（126项Python、62项C#本地/回环SSH、83项WPF），深浅色SSH页及下拉布局核对通过。连接记录使用真实Windows DPAPI，登录交互采用模拟传输；本轮未连接真实服务器。Linux TUN权限/路由及干净部署验收边界保持。
+本轮279项检查通过（133项Python、62项C#本地/回环SSH、84项WPF）。真实服务器只读日志确认TUN准备失败为218/CAPABILITIES；修复用户unit不兼容的能力限制，失败保留原因且核验恢复。配置摘要/PID不变，未执行真实权限安装、重启或TUN切换；修复后的真实Linux启用仍待用户操作验收。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 

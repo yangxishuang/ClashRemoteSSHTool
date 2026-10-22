@@ -445,6 +445,30 @@ def tun_dropin(request):
     return private_path(HOME / ".config/systemd/user" / (service_name(request) + ".d") / "70-clashonweb-tun.conf")
 
 
+def tun_preparation_error(request, error):
+    # Capture the failed invocation before restoring/restarting the original unit.
+    # Read only fixed systemd properties: raw journals may contain subscription credentials.
+    try:
+        result = run(["systemctl", "--user", "show", service_name(request),
+                      "--property=ExecMainCode,ExecMainStatus,Result"], timeout=10, check=False)
+        fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+        if fields.get("ExecMainCode") == "1":  # CLD_EXITED; a signal number is not a systemd exit status.
+            status = fields.get("ExecMainStatus")
+            if status == "218":
+                return "服务启动失败（218/CAPABILITIES），用户服务无法应用能力限制"
+            if status == "203":
+                return "服务启动失败（203/EXEC），请检查独立内核的执行权限、ACL及宿主能力限制"
+            if status == "227":
+                return "服务启动失败（227/NO_NEW_PRIVILEGES），无法设置 NoNewPrivileges"
+            if status and status.isdigit() and status != "0":
+                return "服务进程退出（状态码 " + status[:5] + "）"
+    except Exception:
+        pass
+    if isinstance(error, subprocess.TimeoutExpired):
+        return "服务重启或管理接口检查超时"
+    return redact(error)[:240]
+
+
 def prepare_tun_service(request):
     # The privileged bootstrap has only installed a root-owned, UID-restricted binary.
     # This unprivileged step changes only this user's reviewed unit override.
@@ -462,24 +486,42 @@ def prepare_tun_service(request):
     if old and not old.startswith(TUN_MARKER.encode()):
         raise RuntimeError("TUN 服务覆盖文件已存在且不属于本应用")
     config = config_path(request)
+    # A non-root user manager cannot drop the host capability bounding set.
+    # File capabilities on the root-owned/UID-restricted executable grant only
+    # NET_ADMIN/NET_RAW at exec; preserve inherited host/unit restrictions.
     content = (TUN_MARKER + "\n[Service]\nExecStart=\nExecStart=" + systemd_quote(binary) + " -d " + systemd_quote(config.parent) + " -f " + systemd_quote(config) +
-               "\nNoNewPrivileges=no\nCapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW\n").encode()
+               "\nNoNewPrivileges=no\n").encode()
     try:
         atomic_write(dropin, content)
         run(["systemctl", "--user", "daemon-reload"])
         run(["systemctl", "--user", "restart", service_name(request)], timeout=35)
         wait_api(request)
-        if not tun_capabilities(request)["ready"]:
-            raise RuntimeError("服务启动后仍未获得 TUN 所需设备、权限或后台计时能力")
-    except Exception:
-        if old is None:
-            if dropin.exists():
-                dropin.unlink()
-        else:
-            atomic_write(dropin, old)
-        run(["systemctl", "--user", "daemon-reload"], check=False)
-        run(["systemctl", "--user", "restart", service_name(request)], timeout=35, check=False)
-        raise RuntimeError("TUN 权限应用失败，已撤销本次服务覆盖；请刷新确认原服务状态")
+        caps = tun_capabilities(request)
+        if not caps["ready"]:
+            missing = [label for key, label in (("capable", "CAP_NET_ADMIN"), ("device", "/dev/net/tun"),
+                       ("linger", "linger"), ("timer", "systemd-run"), ("running", "运行中的服务")) if not caps.get(key)]
+            raise RuntimeError("服务启动后仍缺少：" + "、".join(missing))
+        if dropin.read_bytes() != content:
+            raise RuntimeError("TUN 服务覆盖出现外部修改")
+    except Exception as error:
+        reason = tun_preparation_error(request, error)
+        try:
+            current = dropin.read_bytes() if dropin.exists() else None
+            if current not in (old, content):
+                raise RuntimeError("服务覆盖出现外部修改，未覆盖")
+            if old is None:
+                if dropin.exists():
+                    dropin.unlink()
+            else:
+                atomic_write(dropin, old)
+            run(["systemctl", "--user", "daemon-reload"])
+            run(["systemctl", "--user", "restart", service_name(request)], timeout=35)
+            wait_api(request)
+            if service_info(request).get("ActiveState") != "active" or (dropin.read_bytes() if dropin.exists() else None) != old:
+                raise RuntimeError("原服务状态未确认")
+        except Exception:
+            raise RuntimeError("TUN 权限应用失败：" + reason + "；恢复未能确认，请通过 SSH 检查服务状态，勿重复开启") from error
+        raise RuntimeError("TUN 权限应用失败：" + reason + "；已撤销本次服务覆盖，原服务及管理 API 已恢复") from error
     return dict(network_status(request), message="TUN 权限已准备，服务已重启；可使用概览开关启用 TUN")
 
 
