@@ -4,6 +4,7 @@ $dotnetExe = & (Join-Path $PSScriptRoot 'Get-Dotnet.ps1')
 Push-Location (Split-Path $PSScriptRoot -Parent)
 $publishLock = $null
 $stagedPath = $null
+$sourceDirty = [bool](& git status --porcelain)
 try {
     $restoreArgs = @()
     if ($RestoreSource) { $restoreArgs += @('--source', $RestoreSource, '-p:NuGetAudit=false') }
@@ -45,8 +46,7 @@ try {
         New-Item -ItemType Directory -Force -Path $licensePath | Out-Null
         Get-ChildItem -LiteralPath licenses -File | Copy-Item -Destination $licensePath -Force
         $revision = & git rev-parse HEAD
-        $dirty = [bool](& git status --porcelain)
-        $buildInfo = @{ version = $version; commit = $revision; dirty = $dirty; runtime = 'win-x64'; builtAtUtc = [DateTimeOffset]::UtcNow.ToString('O') } | ConvertTo-Json
+        $buildInfo = @{ version = $version; commit = $revision; dirty = $sourceDirty; runtime = 'win-x64'; builtAtUtc = [DateTimeOffset]::UtcNow.ToString('O') } | ConvertTo-Json
         [System.IO.File]::WriteAllText((Join-Path $stagedPath 'BUILD-INFO.json'), $buildInfo, [System.Text.UTF8Encoding]::new($false))
         $checksums = Get-ChildItem -LiteralPath $stagedPath -File -Recurse | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object FullName | ForEach-Object {
             $relativeName = $_.FullName.Substring($stagedPath.TrimEnd('\').Length + 1).Replace('\', '/')
