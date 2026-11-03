@@ -2,9 +2,9 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.8.0，2026-11-03。** [打开新EXE](artifacts/Clash-Remote-SSH/Clash-Remote-SSH.exe) · [分发包](artifacts/Clash-Remote-SSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261103-0.8.0.md)
+**版本0.8.0，2026-11-03。** [打开EXE](artifacts/Clash-Remote-SSH.exe) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261103-0.8.0.md)
 
-采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
+采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。源码版本通过Git提交和标签管理。
 
 概览顶部的代理服务与代理模式各半宽，规则/全局/直连在同一组选项卡中横滑切换，保存远端配置并回读。网络设置与网站测试也各半宽，标题与内边距对齐，网站测试单行四项且移除标题下小字；原“恢复直连”由代理模式的“直连”项替代。
 
@@ -50,7 +50,13 @@ python -m pip install -r tests/requirements.txt
 powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 ```
 
-产物在`artifacts/Clash-Remote-SSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
+## 发布目录规范
+
+每次成功发布后，`artifacts/` 只包含本次生成的文件。自包含 Windows x64 程序直接放在根目录，程序名固定为 `Clash-Remote-SSH.exe`。同目录保留 `README.txt`、`BUILD-INFO.json`、`SHA256SUMS.txt`、`THIRD-PARTY-NOTICES.md` 和 `licenses/`。
+
+发布先在 `.tools/` 暂存，完成后替换整个 `artifacts/`。历史版本通过 Git 标签查阅，发布目录不生成 ZIP 或版本子目录。请将需要长期保留的文件放在其他位置。更新前关闭从 `artifacts/` 启动的程序。
+
+使用 `-NoPublish` 只编译，`-RestoreSource` 可指定 NuGet 缓存源。
 
 批量更新在隔离环境中验证。本轮未连接真实服务器，实际订阅更新及服务重启由用户在应用内触发。
 

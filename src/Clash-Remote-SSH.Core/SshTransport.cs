@@ -81,6 +81,7 @@ public sealed partial class PasswordSshTransport : ISshTransport
     private readonly ConnectionProfile _profile;
     private readonly SshClient _client;
     private readonly SemaphoreSlim _serial = new(1, 1);
+    private readonly SemaphoreSlim _authentication = new(1, 1);
     private string? _hostError;
     public PasswordSshTransport(ConnectionProfile profile, string password, Func<HostIdentity, bool> verifyHost)
     {
@@ -115,28 +116,44 @@ public sealed partial class PasswordSshTransport : ISshTransport
     private async Task<CommandResult> ExecuteCoreAsync(string command, string input, TimeSpan timeout, CancellationToken cancellation)
     {
         await _serial.WaitAsync(cancellation);
-        try
-        {
-            if (!_client.IsConnected)
-            {
-                _hostError = null;
-                try { await _client.ConnectAsync(cancellation); }
-                catch (Exception error) when (_hostError != null) { throw new InvalidOperationException(_hostError, error); }
-            }
-            using var remote = _client.CreateCommand(command, Encoding.UTF8);
-            remote.CommandTimeout = timeout;
-            var execute = remote.ExecuteAsync(cancellation);
-            if (input.Length > 0)
-            {
-                using var stream = remote.CreateInputStream();
-                var bytes = Encoding.UTF8.GetBytes(input);
-                await stream.WriteAsync(bytes, cancellation);
-                await stream.FlushAsync(cancellation);
-            }
-            await execute;
-            return new(remote.ExitStatus ?? -1, remote.Result, remote.Error);
-        }
+        try { return await ExecuteCommandAsync(command, input, timeout, cancellation); }
         finally { _serial.Release(); }
     }
-    public void Dispose() { _client.Dispose(); _serial.Dispose(); }
+
+    // Measurements use separate command channels on the same SSH session.
+    internal Task<CommandResult> ExecuteParallelAsync(string command, string input, TimeSpan timeout, CancellationToken cancellation)
+        => Task.Run(() => ExecuteCommandAsync(command, input, timeout, cancellation), cancellation);
+
+    private async Task EnsureConnectedAsync(CancellationToken cancellation)
+    {
+        if (_client.IsConnected) return;
+        await _authentication.WaitAsync(cancellation);
+        try
+        {
+            if (_client.IsConnected) return;
+            _hostError = null;
+            try { await _client.ConnectAsync(cancellation); }
+            catch (Exception error) when (_hostError != null) { throw new InvalidOperationException(_hostError, error); }
+        }
+        finally { _authentication.Release(); }
+    }
+
+    private async Task<CommandResult> ExecuteCommandAsync(string command, string input, TimeSpan timeout, CancellationToken cancellation)
+    {
+        await EnsureConnectedAsync(cancellation);
+        using var remote = _client.CreateCommand(command, Encoding.UTF8);
+        remote.CommandTimeout = timeout;
+        var execute = remote.ExecuteAsync(cancellation);
+        if (input.Length > 0)
+        {
+            using var stream = remote.CreateInputStream();
+            var bytes = Encoding.UTF8.GetBytes(input);
+            await stream.WriteAsync(bytes, cancellation);
+            await stream.FlushAsync(cancellation);
+        }
+        await execute;
+        return new(remote.ExitStatus ?? -1, remote.Result, remote.Error);
+    }
+
+    public void Dispose() { _client.Dispose(); _serial.Dispose(); _authentication.Dispose(); }
 }

@@ -11,6 +11,7 @@ public sealed partial class RemoteActions : IDisposable
     private readonly ISshTransport _transport;
     private readonly ConnectionProfile _profile;
     private readonly SemaphoreSlim _operations = new(1, 1);
+    private readonly SemaphoreSlim _nodeDelays = new(4, 4);
     // JSON goes to encrypted stdin, never into HTML or a shell expression.
     private static readonly JsonSerializerOptions WireJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     private static string Resource(string name)
@@ -52,13 +53,29 @@ public sealed partial class RemoteActions : IDisposable
         return result.Output;
     }
 
-    public async Task<RemoteReply> InvokeAsync(string action, object? values = null, CancellationToken cancellation = default)
+    public Task<RemoteReply> InvokeAsync(string action, object? values = null, CancellationToken cancellation = default) =>
+        InvokeCoreAsync(action, values, cancellation);
+
+    public Task<RemoteReply> TestNodeDelayAsync(string node, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(node);
+        return InvokeCoreAsync("delay", new { node }, cancellation, concurrentDelaySeconds: 45);
+    }
+
+    public Task<RemoteReply> TestGroupDelayAsync(string group, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(group);
+        return InvokeCoreAsync("delay", new { group }, cancellation, concurrentDelaySeconds: 2400);
+    }
+
+    private async Task<RemoteReply> InvokeCoreAsync(string action, object? values, CancellationToken cancellation, int? concurrentDelaySeconds = null)
     {
         var allowed = new[] { "probe", "core.status", "groups", "select", "delay", "service", "logs", "connectivity", "mode", "update", "deploy",
             "profiles.list", "profiles.source", "profiles.preview", "profiles.import", "profiles.apply", "profiles.update", "profiles.rename", "profiles.delete", "uninstall.plan", "uninstall",
             "network.status", "network.test", "network.mode", "network.system-proxy", "network.tun.prepare", "network.tun.set", "network.tun.confirm" };
         if (!allowed.Contains(action)) throw new ArgumentException("不支持的远端动作。");
-        await _operations.WaitAsync(cancellation);
+        var operations = concurrentDelaySeconds.HasValue ? _nodeDelays : _operations;
+        await operations.WaitAsync(cancellation);
         try
         {
             var payload = new Dictionary<string, object?>
@@ -72,18 +89,22 @@ public sealed partial class RemoteActions : IDisposable
                     if (payload.ContainsKey(entry.Name)) throw new ArgumentException("不能覆盖固定操作参数。");
                     payload[entry.Name] = entry.Value;
                 }
-            var seconds = action is "deploy" or "update" or "profiles.import" or "profiles.preview" or "profiles.apply" or "profiles.update" ? 600
-                : action == "delay" ? 2400 : action == "network.tun.prepare" ? 360 : action is "service" or "uninstall" ? 120 : action is "network.tun.set" or "network.system-proxy" or "network.mode" ? 240 : action.StartsWith("network.") ? 45 : 25;
+            var seconds = concurrentDelaySeconds ?? (action is "deploy" or "update" or "profiles.import" or "profiles.preview" or "profiles.apply" or "profiles.update" ? 600
+                : action == "delay" ? 2400 : action == "network.tun.prepare" ? 360 : action is "service" or "uninstall" ? 120 : action is "network.tun.set" or "network.system-proxy" or "network.mode" ? 240 : action.StartsWith("network.") ? 45 : 25);
             var network = action.StartsWith("network.");
             var input = (network ? EncodeScript(NetworkScript) + "\n" : "") + JsonSerializer.Serialize(payload, WireJson);
-            var result = await _transport.ExecuteAsync(network ? NetworkCommand : ScriptCommand, input, TimeSpan.FromSeconds(seconds), cancellation);
+            var command = network ? NetworkCommand : ScriptCommand;
+            var timeout = TimeSpan.FromSeconds(seconds);
+            var result = concurrentDelaySeconds.HasValue && _transport is PasswordSshTransport password
+                ? await password.ExecuteParallelAsync(command, input, timeout, cancellation)
+                : await _transport.ExecuteAsync(command, input, timeout, cancellation);
             if (result.ExitCode != 0 && !result.Output.Contains("@@CLASHSSH@@"))
                 throw new InvalidOperationException(Redactor.Clean(result.Error.Length > 0 ? result.Error : result.Output));
             var reply = RemoteReply.Parse(result.Output);
             reply.EnsureSuccess();
             return reply;
         }
-        finally { _operations.Release(); }
+        finally { operations.Release(); }
     }
 
     public async Task<RemotePrivilegeMode> CheckPrivilegesAsync(CancellationToken cancellation = default)
@@ -131,5 +152,5 @@ public sealed partial class RemoteActions : IDisposable
         finally { _operations.Release(); }
     }
     private static string ShellQuote(string value) => "'" + value.Replace("'", "'\"'\"'") + "'";
-    public void Dispose() { _transport.Dispose(); _operations.Dispose(); _deployments.Dispose(); }
+    public void Dispose() { _transport.Dispose(); _operations.Dispose(); _nodeDelays.Dispose(); _deployments.Dispose(); }
 }

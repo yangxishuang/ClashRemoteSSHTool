@@ -74,6 +74,25 @@
             <DataTrigger Binding="{Binding DataContext.CanSelectNode, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"><Setter Property="Cursor" Value="Arrow"/></DataTrigger>
         </Style.Triggers>
     </Style>
+    <Style x:Key="NodeDelayButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="ToolTip" Value="仅测试此节点的延迟"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsTestingDelay}" Value="True">
+                <Setter Property="Cursor" Value="Wait"/>
+                <Setter Property="ToolTip" Value="正在测试此节点的延迟"/>
+                <Setter Property="AutomationProperties.ItemStatus" Value="正在测速"/>
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <ui:DelaySpinner Width="14" Height="14" Stretch="Uniform"
+                                             Stroke="{DynamicResource Accent}" StrokeThickness="1.8"
+                                             StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
     <Style x:Key="NodeLatency" TargetType="TextBlock">
         <Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource Muted}"/>
         <Style.Triggers>

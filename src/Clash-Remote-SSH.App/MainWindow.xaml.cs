@@ -17,6 +17,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private RemoteActions? _remote;
     private bool _connected, _busy, _installed;
     private ProxyGroup? _group;
+    private readonly HashSet<string> _nodeDelayTests = new(StringComparer.Ordinal);
     private string _service = "尚未连接", _version = "—", _mode = "—", _port = "等待连接";
     private int _mixedPort = 7890;
     private string _status = "选择已保存的服务器，或填写连接信息后连接。", _sample = "";
@@ -28,6 +29,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<NodeRow> Nodes { get; } = new();
     public ICollectionView NodesView { get; }
     public bool IsIdle => !_busy;
+    public bool CanChangeConnection => IsIdle && _nodeDelayTests.Count == 0;
+    public bool CanTestGroup => CanOperate && Nodes.Count > 0 && _nodeDelayTests.Count == 0;
     public bool CanOperate => !_busy && (_remote != null || _demo);
     public bool CanDeploy => CanOperate && !_installed;
     public bool CanSelectNode => CanOperate && _group?.Type == "Selector";
@@ -72,7 +75,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (demo) Loaded += (_, _) => LoadDemo();
         Closing += (_, e) =>
         {
-            if (_busy)
+            if (!CanChangeConnection)
             { e.Cancel = true; InAppFeedback.Show(this, "操作正在执行，请等待结果后关闭窗口。", NoticeKind.Information); return; }
             _remote?.Dispose(); _remote = null;
             LoginPassword.Clear(); SudoPassword.Clear();
@@ -134,6 +137,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void ConnectClicked(object sender, RoutedEventArgs e)
     {
+        if (!CanChangeConnection) return;
         if (_connected && !_demo)
         {
             _remote?.Dispose(); _remote = null; _connected = false;
@@ -232,7 +236,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Nodes.Clear();
         if (_group != null)
             foreach (var member in _group.Members)
-                Nodes.Add(new NodeRow(member.Name, member.Type, member.Name == _group.Current));
+                Nodes.Add(new NodeRow(member.Name, member.Type, member.Name == _group.Current)
+                {
+                    IsTestingDelay = _nodeDelayTests.Contains(member.Name)
+                });
         Notify();
     }
     private void SearchChanged(object sender, TextChangedEventArgs e) => NodesView?.Refresh();
@@ -244,25 +251,58 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var group = _group.Name;
         await Run("切换节点", async () => { await _remote!.InvokeAsync("select", new { group, node = row.Name }); await RefreshState(); });
     }
-    private async Task RunDelay(object target)
+    private static int? ReadDelay(JsonElement result) =>
+        result.TryGetProperty("delay", out var ms) && ms.ValueKind == JsonValueKind.Number ? ms.GetInt32() : null;
+
+    private async Task TestDelaysAsync(HashSet<string> names, string title, Func<Task<RemoteReply>> measure)
     {
-        var reply = await _remote!.InvokeAsync("delay", target);
-        foreach (var result in reply.Data.GetProperty("results").EnumerateArray())
+        if (_demo)
         {
-            var row = Nodes.FirstOrDefault(n => n.Name == Text(result, "name"));
-            if (row == null) continue;
-            row.SetDelay(result.TryGetProperty("delay", out var ms) && ms.ValueKind == JsonValueKind.Number ? ms.GetInt32() : null);
+            InAppFeedback.Show(this, "当前是界面演示，不会连接或修改任何服务器。");
+            return;
         }
-        AddLog("延迟测量由服务器发起，目标：www.gstatic.com/generate_204");
-        _sample = "最近测速 " + DateTime.Now.ToString("HH:mm:ss"); Notify();
+        var configurationHash = _groupConfigurationHash;
+        _nodeDelayTests.UnionWith(names);
+        foreach (var node in Nodes.Where(node => names.Contains(node.Name))) node.IsTestingDelay = true;
+        Notify();
+        try
+        {
+            var reply = await measure();
+            if (configurationHash != _groupConfigurationHash) return;
+            var results = reply.Data.GetProperty("results").EnumerateArray()
+                .ToLookup(result => Text(result, "name"), StringComparer.Ordinal);
+            foreach (var node in Nodes.Where(node => names.Contains(node.Name) && results.Contains(node.Name)))
+                node.SetDelay(ReadDelay(results[node.Name].First()));
+            _sample = "最近测速 " + DateTime.Now.ToString("HH:mm:ss");
+        }
+        catch (Exception error)
+        {
+            var message = title + "失败：" + Redactor.Clean(error.Message);
+            AddLog(message);
+            if (!_busy) InAppFeedback.Show(this, message, NoticeKind.Error);
+        }
+        finally
+        {
+            _nodeDelayTests.ExceptWith(names);
+            foreach (var node in Nodes.Where(node => names.Contains(node.Name))) node.IsTestingDelay = false;
+            Notify();
+        }
     }
+
     private async void NodeDelayClicked(object sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is NodeRow row) await Run("单节点测速", () => RunDelay(new { node = row.Name }));
+        if (!CanOperate || (sender as Button)?.Tag is not NodeRow row || _nodeDelayTests.Contains(row.Name)) return;
+        var remote = _remote;
+        await TestDelaysAsync(new HashSet<string>(StringComparer.Ordinal) { row.Name }, $"「{row.Name}」测速",
+            () => remote!.TestNodeDelayAsync(row.Name));
     }
+
     private async void GroupDelayClicked(object sender, RoutedEventArgs e)
     {
-        if (_group != null) await Run("分组测速", () => RunDelay(new { group = _group.Name }));
+        if (!CanTestGroup || _group is not { } group) return;
+        var remote = _remote;
+        await TestDelaysAsync(Nodes.Select(node => node.Name).ToHashSet(StringComparer.Ordinal),
+            $"「{group.Name}」分组测速", () => remote!.TestGroupDelayAsync(group.Name));
     }
     private async void LogsClicked(object sender, RoutedEventArgs e) => await Run("读取服务日志", async () =>
     { var reply = await _remote!.InvokeAsync("logs", new { lines = 50 }); _logs = Redactor.Clean(Text(reply.Data, "text")); Notify(); });
@@ -353,6 +393,17 @@ public sealed class NodeRow : INotifyPropertyChanged
     public string DelayText { get; private set; } = "待测速";
     public NodeRow(string name, string type, bool current) { Name = name; Type = type; IsCurrent = current; }
     public string DelayKind { get; private set; } = "Unknown";
+    private bool _isTestingDelay;
+    public bool IsTestingDelay
+    {
+        get => _isTestingDelay;
+        internal set
+        {
+            if (_isTestingDelay == value) return;
+            _isTestingDelay = value;
+            PropertyChanged?.Invoke(this, new(nameof(IsTestingDelay)));
+        }
+    }
     public void SetDelay(int? value)
     {
         DelayText = value.HasValue ? value + " ms" : "超时";

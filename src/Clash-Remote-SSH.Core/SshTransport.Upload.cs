@@ -83,12 +83,7 @@ public sealed partial class PasswordSshTransport
             await _serial.WaitAsync(budget.Token).ConfigureAwait(false);
             try
             {
-                if (!_client.IsConnected)
-                {
-                    _hostError = null;
-                    try { await _client.ConnectAsync(budget.Token).ConfigureAwait(false); }
-                    catch (Exception error) when (_hostError != null) { throw new InvalidOperationException(_hostError, error); }
-                }
+                await EnsureConnectedAsync(budget.Token).ConfigureAwait(false);
                 using var remote = _client.CreateCommand(command, Encoding.UTF8);
                 remote.CommandTimeout = timeout;
                 var execute = remote.ExecuteAsync(budget.Token);
