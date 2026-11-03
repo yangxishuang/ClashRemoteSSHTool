@@ -59,7 +59,7 @@ jobs:
 
             下载 `Clash-Remote-SSH.exe` 后直接运行，无需额外安装 .NET。系统 SSH 模式依赖 Windows OpenSSH，密码模式使用内置 SSH.NET。
 
-            建议同时下载 `SHA256SUMS.txt` 并核对文件完整性。程序暂未签名，Windows 可能显示 SmartScreen 提示。
+            程序暂未签名，Windows 可能显示 SmartScreen 提示。第三方许可及来源见仓库的 `licenses` 目录和 `THIRD-PARTY-NOTICES.md`。
 
             ### 注意事项
 
@@ -71,7 +71,7 @@ jobs:
           $notesPath = Join-Path $env:RUNNER_TEMP "release-notes.md"
           [System.IO.File]::WriteAllText($notesPath, $env:RELEASE_NOTES, [System.Text.UTF8Encoding]::new($false))
 
-          $assets = @(Get-ChildItem -LiteralPath artifacts -Recurse -File | Sort-Object FullName | ForEach-Object FullName)
+          $assets = @(Get-Item -LiteralPath artifacts/Clash-Remote-SSH.exe | ForEach-Object FullName)
           if ($assets.Count -eq 0) {
               throw "No release assets were produced."
           }
@@ -82,6 +82,14 @@ jobs:
               if ($LASTEXITCODE -ne 0) { throw "Updating the release failed." }
               gh release upload $env:GITHUB_REF_NAME @assets --repo $env:GITHUB_REPOSITORY --clobber
               if ($LASTEXITCODE -ne 0) { throw "Uploading release assets failed." }
+              $existingAssets = gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --json assets --jq '.assets[].name'
+              if ($LASTEXITCODE -ne 0) { throw "Listing release assets failed." }
+              foreach ($asset in $existingAssets) {
+                  if ($asset -ne 'Clash-Remote-SSH.exe') {
+                      gh release delete-asset $env:GITHUB_REF_NAME $asset --repo $env:GITHUB_REPOSITORY --yes
+                      if ($LASTEXITCODE -ne 0) { throw "Deleting a release asset failed: $asset" }
+                  }
+              }
           } else {
               $arguments = @("release", "create", $env:GITHUB_REF_NAME)
               $arguments += $assets
