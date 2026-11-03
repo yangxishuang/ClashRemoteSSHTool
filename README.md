@@ -2,7 +2,7 @@
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.8.0，2026-11-03。** [打开EXE](artifacts/Clash-Remote-SSH.exe) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261103-0.8.0.md)
+**版本0.8.0，2026-11-03。**
 
 ## 功能
 

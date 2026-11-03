@@ -12,3 +12,11 @@ settings.json
 known-hosts.json
 **/__pycache__/
 *.pyc
+
+# Local-only development material; do not publish to the source repository.
+/AGENTS.md
+/CHANGELOG.md
+/HEADLESS_CLASH_WEB_DESIGN.md
+/docs/
+/tests/
+/scripts/test.ps1

@@ -176,7 +176,7 @@
                     <StackPanel IsEnabled="{Binding CanEditConnection}">
                         <TextBlock Text="服务器地址" Style="{StaticResource SideLabel}"/>
                         <Grid x:Name="ServerAddressRow" Margin="0,0,0,18">
-                            <TextBox x:Name="HostBox" Text="example.invalid" Padding="12,8,52,8" TextChanged="ConnectionTargetEdited" AutomationProperties.Name="服务器地址"/>
+                            <TextBox x:Name="HostBox" Text="" Padding="12,8,52,8" TextChanged="ConnectionTargetEdited" AutomationProperties.Name="服务器地址"/>
                             <ComboBox x:Name="SavedServersBox" ItemsSource="{Binding SavedConnections}" SelectionChanged="SavedServerChanged" DropDownClosed="SavedServerDropdownClosed"
                                       Style="{StaticResource SavedServerSelector}" Width="44" HorizontalAlignment="Right" VerticalAlignment="Stretch"
                                       AutomationProperties.Name="已保存的服务器" ToolTip="选择已保存的服务器，自动填入登录信息">
@@ -189,7 +189,7 @@
                             </ComboBox>
                         </Grid>
                         <Grid Margin="0,0,0,18"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <StackPanel><TextBlock Text="用户名" Style="{StaticResource SideLabel}"/><TextBox x:Name="UserBox" Text="user" TextChanged="ConnectionTargetEdited"/></StackPanel>
+                            <StackPanel><TextBlock Text="用户名" Style="{StaticResource SideLabel}"/><TextBox x:Name="UserBox" Text="" TextChanged="ConnectionTargetEdited"/></StackPanel>
                             <StackPanel Grid.Column="2"><TextBlock Text="端口" Style="{StaticResource SideLabel}"/><TextBox x:Name="PortBox" Text="22" TextChanged="ConnectionTargetEdited"/></StackPanel>
                         </Grid>
                         <TextBlock Text="登录方式" Style="{StaticResource SideLabel}"/>

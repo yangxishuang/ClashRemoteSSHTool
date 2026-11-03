@@ -39,7 +39,7 @@ try {
         Copy-Item -LiteralPath THIRD-PARTY-NOTICES.md -Destination (Join-Path $stagedPath 'THIRD-PARTY-NOTICES.md') -Force
         [xml]$projectXml = [IO.File]::ReadAllText((Join-Path $projectPath 'src/Clash-Remote-SSH.App/Clash-Remote-SSH.App.csproj'))
         $version = [string]$projectXml.Project.PropertyGroup.Version
-        $releaseReadme = [System.IO.File]::ReadAllText((Join-Path (Get-Location) 'docs/RELEASE-README.txt')) -replace '(?m)^ClashSSH遥控台 [^\r\n]+', ('ClashSSH遥控台 ' + $version)
+        $releaseReadme = "ClashSSH遥控台 $version`r`n`r`nWindows x64 自包含单文件。双击 Clash-Remote-SSH.exe 启动。`r`n"
         [System.IO.File]::WriteAllText((Join-Path $stagedPath 'README.txt'), $releaseReadme, [System.Text.UTF8Encoding]::new($false))
         $licensePath = Join-Path $stagedPath 'licenses'
         New-Item -ItemType Directory -Force -Path $licensePath | Out-Null
