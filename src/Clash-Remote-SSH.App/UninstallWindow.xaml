@@ -1,0 +1,8 @@
+<Window Style="{StaticResource {x:Type Window}}" x:Class="ClashRemoteSsh.App.UninstallWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:ClashRemoteSsh.App.Controls" Title="移除并卸载当前服务" Width="660" Height="540" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" Background="{DynamicResource Page}" FontFamily="Segoe UI, Microsoft YaHei UI" FontSize="13" Foreground="{DynamicResource Ink}">
+    <ui:SmoothBorder Background="{DynamicResource Page}"><Grid Margin="26"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,18"><TextBlock Text="移除当前用户服务" FontSize="23" FontWeight="SemiBold"/><TextBlock Text="代理连接将中断。已导入配置和当前配置快照会保留。" Foreground="{DynamicResource Error}" TextWrapping="Wrap" Margin="0,9,0,0"/></StackPanel>
+        <ui:SmoothBorder Grid.Row="1" Style="{StaticResource Card}" Padding="14"><TextBox x:Name="PlanText" Height="Auto" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" FontSize="12"/></ui:SmoothBorder>
+        <StackPanel Grid.Row="2" Margin="0,18,0,14"><TextBlock x:Name="ConfirmHint" Margin="0,0,0,8"/><TextBox x:Name="ConfirmBox" TextChanged="ConfirmationChanged"/></StackPanel>
+        <Button x:Name="RemoveButton" Grid.Row="3" Content="确认停止并卸载当前服务" Background="{DynamicResource Error}" Foreground="White" BorderThickness="0" HorizontalAlignment="Right" IsEnabled="False" Click="RemoveClicked"/>
+    </Grid></ui:SmoothBorder>
+</Window>

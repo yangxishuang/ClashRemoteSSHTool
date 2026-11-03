@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>ClashRemoteSsh.App</RootNamespace>
+    <AssemblyName>Clash-Remote-SSH</AssemblyName>
+    <Product>ClashSSH遥控台</Product>
+    <Description>Clash-Remote-SSH</Description>
+    <Version>0.8.0</Version>
+    <ApplicationIcon>Assets/AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="Assets/AppIcon.png" />
+    <Resource Include="Assets/AppIcon.ico" />
+    <ProjectReference Include="../Clash-Remote-SSH.Core/Clash-Remote-SSH.Core.csproj" />
+  </ItemGroup>
+</Project>

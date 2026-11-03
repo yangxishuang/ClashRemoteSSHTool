@@ -1,2 +1,2 @@
 # Upstream packages/databases must retain their exact verified bytes on every checkout.
-src/ClashOnWebSSH.Core/Bundled/* binary
+src/Clash-Remote-SSH.Core/Bundled/* binary

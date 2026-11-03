@@ -1,8 +1,8 @@
-# Clash 遥控台 · SSH
+# ClashSSH遥控台 · Clash-Remote-SSH
 
 Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，管理 Linux 服务器上的 mihomo，无需部署 Web 后台。
 
-**版本0.7.1，2026-10-22。** [打开新EXE](artifacts/ClashOnWebSSH/ClashOnWebSSH.exe) · [分发包](artifacts/ClashOnWebSSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261022-0.7.1.md)
+**版本0.8.0，2026-11-03。** [打开新EXE](artifacts/Clash-Remote-SSH/Clash-Remote-SSH.exe) · [分发包](artifacts/Clash-Remote-SSH.zip) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261103-0.8.0.md)
 
 采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。版本历史通过Git提交/标签管理，固定EXE与ZIP路径不随版本变化。
 
@@ -12,7 +12,7 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 
 网络选项卡内容区缩到约原来一半，保留开关及状态。点击TUN先回读条件，已就绪直接开启；缺权限再显示准备窗口，确认“准备并开启TUN”后自动继续，取消或准备失败不提交开启。
 
-配置页点击整张卡片切换，当前配置整卡高亮；更新统一放在右上角“⋯”菜单，重复点击当前配置不会重启。
+配置页的「刷新列表」会逐条更新所有链接订阅，回读节点数量、剩余流量和到期时间。更新正在使用的订阅需确认重启代理服务，单条订阅仍可从卡片「⋯」菜单更新。
 
 代理节点改为FlClash式卡片网格，随内容区宽度自动增减列数；整卡选择、右下角独立测速，长名称最多两行。大分组只创建可见区域及相邻行卡片，搜索后连续重排。
 
@@ -40,7 +40,7 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 
 双击 EXE，无需另装 .NET 或本机 Python。免密模式使用 Windows OpenSSH 的已有配置；密码模式使用随附 SSH.NET。测试目标 `example.invalid`、用户名 `user`，需先登录校园网 VPN。
 
-本机保存连接记录、密码模式主机指纹及主题偏好，位置 `%LOCALAPPDATA%\ClashOnWebSSH`。SSH密码通过Windows DPAPI当前用户加密，保存在connections.json；sudo密码、私钥内容及订阅URL不写本机设置。选择记录不自动连接，主机指纹照常核验。关闭窗口不停止远端代理。
+更名后继续从原位置读取本机连接记录、密码模式主机指纹及主题偏好，位置 `%LOCALAPPDATA%\ClashOnWebSSH`。SSH密码通过Windows DPAPI当前用户加密，保存在connections.json；sudo密码、私钥内容及订阅URL不写本机设置。选择记录不自动连接，主机指纹照常核验。关闭窗口不停止远端代理。
 
 安装 .NET SDK **10.0.402** 后：
 
@@ -50,9 +50,9 @@ python -m pip install -r tests/requirements.txt
 powershell -ExecutionPolicy Bypass -File scripts/test.ps1
 ```
 
-产物在`artifacts/ClashOnWebSSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
+产物在`artifacts/Clash-Remote-SSH/`，自包含win-x64单文件，约219MiB。构建支持-NoPublish、-OutputDirectory及-RestoreSource；本轮使用.tools/nuget-feed。固定目录更新同一EXE，运行中的窗口不会被强制关闭，连接设置沿用。
 
-本轮279项检查通过（133项Python、62项C#本地/回环SSH、84项WPF）。真实服务器只读日志确认TUN准备失败为218/CAPABILITIES；修复用户unit不兼容的能力限制，失败保留原因且核验恢复。配置摘要/PID不变，未执行真实权限安装、重启或TUN切换；修复后的真实Linux启用仍待用户操作验收。
+批量更新在隔离环境中验证。本轮未连接真实服务器，实际订阅更新及服务重启由用户在应用内触发。
 
 [文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
 

@@ -1,4 +1,4 @@
-﻿param([string]$RestoreSource, [switch]$NoPublish, [string]$OutputDirectory = 'artifacts/ClashOnWebSSH')
+﻿param([string]$RestoreSource, [switch]$NoPublish, [string]$OutputDirectory = 'artifacts/Clash-Remote-SSH')
 $ErrorActionPreference = 'Stop'
 $dotnetExe = & (Join-Path $PSScriptRoot 'Get-Dotnet.ps1')
 Push-Location (Split-Path $PSScriptRoot -Parent)
@@ -6,20 +6,20 @@ try {
     $restoreArgs = @()
     if ($RestoreSource) { $restoreArgs += @('--source', $RestoreSource, '-p:NuGetAudit=false') }
     $releasePath = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) { [System.IO.Path]::GetFullPath($OutputDirectory) } else { [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $OutputDirectory)) }
-    $releaseExe = Join-Path $releasePath 'ClashOnWebSSH.exe'
+    $releaseExe = Join-Path $releasePath 'Clash-Remote-SSH.exe'
     if (-not $NoPublish) {
-        $runningRelease = Get-Process -Name ClashOnWebSSH -ErrorAction SilentlyContinue | Where-Object Path -eq $releaseExe
-        if ($runningRelease) { throw '请先关闭固定发布目录中的 Clash 遥控台再构建；不会自动终止你的窗口。' }
+        $runningRelease = Get-Process -Name Clash-Remote-SSH -ErrorAction SilentlyContinue | Where-Object Path -eq $releaseExe
+        if ($runningRelease) { throw '请先关闭固定发布目录中的 ClashSSH遥控台再构建；不会自动终止你的窗口。' }
     }
-    & $dotnetExe build ClashOnWebSSH.sln -c Release --nologo @restoreArgs
+    & $dotnetExe build Clash-Remote-SSH.sln -c Release --nologo @restoreArgs
     if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
     if (-not $NoPublish) {
-        & $dotnetExe publish src/ClashOnWebSSH.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=embedded --nologo @restoreArgs -o $releasePath
+        & $dotnetExe publish src/Clash-Remote-SSH.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=embedded --nologo @restoreArgs -o $releasePath
         if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
         Copy-Item -LiteralPath THIRD-PARTY-NOTICES.md -Destination (Join-Path $releasePath 'THIRD-PARTY-NOTICES.md') -Force
-        [xml]$projectXml = Get-Content -LiteralPath src/ClashOnWebSSH.App/ClashOnWebSSH.App.csproj
+        [xml]$projectXml = Get-Content -LiteralPath src/Clash-Remote-SSH.App/Clash-Remote-SSH.App.csproj
         $version = [string]$projectXml.Project.PropertyGroup.Version
-        $releaseReadme = [System.IO.File]::ReadAllText((Join-Path (Get-Location) 'docs/RELEASE-README.txt')) -replace '(?m)^Clash 遥控台 · SSH [^\r\n]+', ('Clash 遥控台 · SSH ' + $version)
+        $releaseReadme = [System.IO.File]::ReadAllText((Join-Path (Get-Location) 'docs/RELEASE-README.txt')) -replace '(?m)^ClashSSH遥控台 [^\r\n]+', ('ClashSSH遥控台 ' + $version)
         [System.IO.File]::WriteAllText((Join-Path $releasePath 'README.txt'), $releaseReadme, [System.Text.UTF8Encoding]::new($false))
         $licensePath = Join-Path $releasePath 'licenses'
         New-Item -ItemType Directory -Force -Path $licensePath | Out-Null

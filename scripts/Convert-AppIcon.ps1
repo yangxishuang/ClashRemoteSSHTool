@@ -1,6 +1,6 @@
 param(
-    [string]$Source = (Join-Path $PSScriptRoot '../src/ClashOnWebSSH.App/Assets/AppIcon.png'),
-    [string]$Destination = (Join-Path $PSScriptRoot '../src/ClashOnWebSSH.App/Assets/AppIcon.ico')
+    [string]$Source = (Join-Path $PSScriptRoot '../src/Clash-Remote-SSH.App/Assets/AppIcon.png'),
+    [string]$Destination = (Join-Path $PSScriptRoot '../src/Clash-Remote-SSH.App/Assets/AppIcon.ico')
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing

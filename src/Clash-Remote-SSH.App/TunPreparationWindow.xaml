@@ -1,0 +1,16 @@
+<Window x:Class="ClashRemoteSsh.App.TunPreparationWindow" Style="{StaticResource {x:Type Window}}"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:ClashRemoteSsh.App.Controls" Title="准备 TUN 权限" Width="640" Height="600" ResizeMode="NoResize" WindowStartupLocation="CenterOwner">
+    <Grid Margin="26"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,22"><TextBlock Text="为服务器准备 TUN" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="只需准备一次，之后在概览中切换。" Style="{StaticResource Caption}" Margin="0,8,0,0"/></StackPanel>
+        <Grid Grid.Row="1"><ui:SmoothBorder Style="{StaticResource Card}"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+            <TextBlock Text="独立内核 · 限定当前用户" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding PreparationDescription}" Style="{StaticResource Caption}" TextWrapping="Wrap" LineHeight="23" Margin="0,12,0,18"/>
+            <Grid><PasswordBox x:Name="SudoBox" PasswordChanged="PasswordChanged" IsEnabled="{Binding CanEnterPassword}"><PasswordBox.Style><Style TargetType="PasswordBox" BasedOn="{StaticResource {x:Type PasswordBox}}"><Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource Inset}"/></Trigger></Style.Triggers></Style></PasswordBox.Style></PasswordBox><TextBlock Text="输入管理员密码" Foreground="{DynamicResource Muted}" Margin="15,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding PlaceholderVisibility}"/></Grid>
+            <TextBlock Text="{Binding PrivilegeText}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,9,0,18"/>
+            <WrapPanel><Button x:Name="PrepareButton" Content="{Binding PreparationAction}" Style="{StaticResource PrimaryButton}" Click="PrepareClicked" IsEnabled="{Binding CanPrepare}" Margin="0,0,8,0"/><Button Content="选择离线包" Click="OfflineClicked" IsEnabled="{Binding IsIdle}" Visibility="{Binding OfflineVisibility}"/></WrapPanel>
+            <TextBlock Text="{Binding ProgressText}" Foreground="{DynamicResource Accent}" TextWrapping="Wrap" Margin="0,16,0,0"/>
+        </StackPanel></ScrollViewer></ui:SmoothBorder><ui:LoadingBorder IsActive="{Binding IsBusy}"/></Grid>
+        <DockPanel Grid.Row="2" Margin="0,18,0,0"><Button DockPanel.Dock="Right" Content="关闭" Click="CloseClicked" IsEnabled="{Binding IsIdle}"/><TextBlock Text="密码仅本次使用，不会保存。" Style="{StaticResource Caption}" VerticalAlignment="Center"/></DockPanel>
+    </Grid>
+</Window>
