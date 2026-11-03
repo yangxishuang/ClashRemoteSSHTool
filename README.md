@@ -4,20 +4,6 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 
 **版本0.8.0，2026-11-03。** [打开EXE](artifacts/Clash-Remote-SSH.exe) · [使用说明](docs/USER-GUIDE.md) · [测试记录](docs/testing/VERIFICATION-20261103-0.8.0.md)
 
-采用FlClash风格的中性表面、蓝色强调和左侧导航，支持深浅色主题及页面过渡。源码版本通过Git提交和标签管理。
-
-概览顶部的代理服务与代理模式各半宽，规则/全局/直连在同一组选项卡中横滑切换，保存远端配置并回读。网络设置与网站测试也各半宽，标题与内边距对齐，网站测试单行四项且移除标题下小字；原“恢复直连”由代理模式的“直连”项替代。
-
-0.7.1修复TUN权限准备时用户服务出现218/CAPABILITIES：保留独立root内核的文件能力与UID ACL，取消用户unit中的CapabilityBoundingSet；失败保留具体原因，原服务及API均回读成功才显示已恢复。
-
-网络选项卡内容区缩到约原来一半，保留开关及状态。点击TUN先回读条件，已就绪直接开启；缺权限再显示准备窗口，确认“准备并开启TUN”后自动继续，取消或准备失败不提交开启。
-
-配置页的「刷新列表」会逐条更新所有链接订阅，回读节点数量、剩余流量和到期时间。更新正在使用的订阅需确认重启代理服务，单条订阅仍可从卡片「⋯」菜单更新。
-
-代理节点改为FlClash式卡片网格，随内容区宽度自动增减列数；整卡选择、右下角独立测速，长名称最多两行。大分组只创建可见区域及相邻行卡片，搜索后连续重排。
-
-0.5.2将卡片高度由132缩小到112 DIP，收紧上下留白；顶部按钮改名为“测试延迟”，继续测试当前分组。
-
 ## 功能
 
 - 系统 OpenSSH 免密登录及 SSH 密码登录；地址栏下拉选择成功连接过的服务器，保存用户名/端口/高级参数、加密密码或私钥路径。启动默认SSH页，填好后点击一次连接；可删除记录。
@@ -38,28 +24,4 @@ Windows 本机图形 SSH 命令遥控器，采用 **C#＋WPF＋.NET 10 LTS**，�
 
 ## 运行与构建
 
-双击 EXE，无需另装 .NET 或本机 Python。免密模式使用 Windows OpenSSH 的已有配置；密码模式使用随附 SSH.NET。测试目标 `example.invalid`、用户名 `user`，需先登录校园网 VPN。
-
-更名后继续从原位置读取本机连接记录、密码模式主机指纹及主题偏好，位置 `%LOCALAPPDATA%\ClashOnWebSSH`。SSH密码通过Windows DPAPI当前用户加密，保存在connections.json；sudo密码、私钥内容及订阅URL不写本机设置。选择记录不自动连接，主机指纹照常核验。关闭窗口不停止远端代理。
-
-安装 .NET SDK **10.0.402** 后：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build.ps1
-python -m pip install -r tests/requirements.txt
-powershell -ExecutionPolicy Bypass -File scripts/test.ps1
-```
-
-## 发布目录规范
-
-每次成功发布后，`artifacts/` 只包含本次生成的文件。自包含 Windows x64 程序直接放在根目录，程序名固定为 `Clash-Remote-SSH.exe`。同目录保留 `README.txt`、`BUILD-INFO.json`、`SHA256SUMS.txt`、`THIRD-PARTY-NOTICES.md` 和 `licenses/`。
-
-发布先在 `.tools/` 暂存，完成后替换整个 `artifacts/`。历史版本通过 Git 标签查阅，发布目录不生成 ZIP 或版本子目录。请将需要长期保留的文件放在其他位置。更新前关闭从 `artifacts/` 启动的程序。
-
-使用 `-NoPublish` 只编译，`-RestoreSource` 可指定 NuGet 缓存源。
-
-批量更新在隔离环境中验证。本轮未连接真实服务器，实际订阅更新及服务重启由用户在应用内触发。
-
-[文档目录](docs/README.md) · [设计](docs/LOCAL-SSH-DESIGN.md) · [按钮映射](docs/COMMAND-MAPPING.md) · [技术选择](docs/DESKTOP-TECHNOLOGY.md) · [第三方说明](THIRD-PARTY-NOTICES.md)
-
-当前基线 **DESKTOP-SSH-1.6**。配置/卸载规格见[配置管理](docs/CONFIGURATION-PROFILES.md)，下载流程见[内核部署](docs/KERNEL-DEPLOYMENT.md)，名称及默认分组见[交互说明](docs/INTERACTION-AND-NAMING.md)。网络/代理模式见[网络规格](docs/NETWORK-CONTROLS.md)及[ADR-013](docs/adr/ADR-013-EXPLICIT-PROXY-MODES.md)。功能、现场差异和测试持续更新，旧平台方案保留于[历史快照](docs/archive/PRECODE-0.1/ARCHIVE-NOTICE.md)，不作为当前实施要求。
+双击 EXE，无需另装 .NET 或本机 Python。免密模式使用 Windows OpenSSH 的已有配置；密码模式使用随附 SSH.NET。
